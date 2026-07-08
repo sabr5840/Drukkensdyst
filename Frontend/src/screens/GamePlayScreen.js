@@ -221,9 +221,6 @@ const GamePlayScreen = () => {
             </Text>
           ) : selectedHotSeatCategory ? (
             <ScrollView showsVerticalScrollIndicator={false}>
-              <TouchableOpacity onPress={() => setSelectedHotSeatCategory(null)}>
-                <Text style={styles.backCategoryText}>← Tilbage</Text>
-              </TouchableOpacity>
 
               <Text style={styles.hotSeatTitle}>
                 {selectedHotSeatCategory === "green"
@@ -299,10 +296,20 @@ const GamePlayScreen = () => {
         <>
           <TouchableOpacity
             style={styles.nextButton}
-            onPress={reachedLimit ? handleEndRound : handleNext}
+            onPress={
+              selectedHotSeatCategory
+                ? () => setSelectedHotSeatCategory(null)
+                : reachedLimit
+                ? handleEndRound
+                : handleNext
+            }
           >
             <Text style={styles.buttonText}>
-              {reachedLimit ? "NÆSTE SPIL" : "Næste"}
+              {selectedHotSeatCategory
+                ? "Tilbage"
+                : reachedLimit
+                ? "NÆSTE SPIL"
+                : "Næste"}
             </Text>
           </TouchableOpacity>
 
@@ -402,7 +409,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#e8e5fc",
     borderRadius: 28,
     padding: 24,
-    alignItems: "center",
+    alignItems: "stretch",
     justifyContent: "center",
     marginBottom: 20,
   },
@@ -474,7 +481,7 @@ const styles = StyleSheet.create({
     color: "#137DC5",
     fontWeight: "bold",
     textAlign: "center",
-    marginBottom: 18,
+    marginBottom: 22,
   },
 
   greenTitle: {
@@ -515,12 +522,13 @@ const styles = StyleSheet.create({
   },
 
   hotSeatQuestion: {
-    fontSize: 14,
-    color: "#555",
-    fontWeight: "bold",
-    textAlign: "center",
-    lineHeight: 21,
-    marginBottom: 7,
+    fontSize: 15,
+    color: "#9c9c9c",
+    fontWeight: "600",
+    textAlign: "left",
+    lineHeight: 23,
+    marginBottom: 18,
+    width: "100%",
   },
 
   categoryWrapper: {
