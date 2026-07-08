@@ -21,11 +21,7 @@ const GameIntroScreen = () => {
 
   const { game, gameId, isHost, players = [], reader } = route.params;
 
-  const selectedReader =
-    reader ||
-    (players.length > 0
-      ? players[Math.floor(Math.random() * players.length)]
-      : null);
+  const selectedReader = reader || null;
 
   const getNextGame = () => {
     const otherGames = games.filter((item) => item.id !== game.id);
@@ -55,17 +51,23 @@ const GameIntroScreen = () => {
       });
     });
 
-    socket.on("showGamePlay", ({ gameId, game, players, reader }) => {
-      const currentPlayer = players.find((player) => player.id === socket.id);
+  socket.on("showGamePlay", (payload) => {
+    const currentPlayer = payload.players.find(
+      (player) => player.id === socket.id
+    );
 
-      navigation.navigate("GamePlay", {
-        game,
-        gameId,
-        isHost: currentPlayer?.isHost || false,
-        players,
-        reader,
-      });
+    navigation.navigate("GamePlay", {
+      game: payload.game,
+      gameId: payload.gameId,
+      isHost: currentPlayer?.isHost || false,
+      players: payload.players,
+      card: payload.card,
+      usedIndexes: payload.usedIndexes,
+      usedPlayerIndexes: payload.usedPlayerIndexes,
+      currentPlayer: payload.currentPlayer,
+      reader: payload.reader,
     });
+  });
 
     return () => {
       socket.off("showGameIntro");
@@ -122,22 +124,19 @@ const GameIntroScreen = () => {
 
       <Text style={styles.rulesHeading}>REGELSÆT</Text>
 
-    <View style={styles.rulesBox}>
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        nestedScrollEnabled
-      >
-        <Text style={styles.description}>{game.description}</Text>
+      <View style={styles.rulesBox}>
+        <ScrollView showsVerticalScrollIndicator={false} nestedScrollEnabled>
+          <Text style={styles.description}>{game.description}</Text>
 
-        <Text style={styles.sectionTitle}>Sådan spiller I:</Text>
+          <Text style={styles.sectionTitle}>Sådan spiller I:</Text>
 
-        {game.rules.map((rule, index) => (
-          <Text key={index} style={styles.ruleText}>
-            • {rule}
-          </Text>
-        ))}
-      </ScrollView>
-    </View>
+          {game.rules.map((rule, index) => (
+            <Text key={index} style={styles.ruleText}>
+              • {rule.replace("{reader}", selectedReader?.name || "Spilleren")}
+            </Text>
+          ))}
+        </ScrollView>
+      </View>
 
       {isHost ? (
         <>
@@ -150,7 +149,7 @@ const GameIntroScreen = () => {
           </TouchableOpacity>
         </>
       ) : (
-        <Text style={styles.waitingText}>Venter på host...</Text>
+        <Text style={styles.waitingText}></Text>
       )}
     </ScrollView>
   );
@@ -220,7 +219,7 @@ const styles = StyleSheet.create({
 
   rulesBox: {
     width: "100%",
-    maxHeight: 380,  
+    maxHeight: 380,
     backgroundColor: "#e8e5fc",
     borderRadius: 28,
     padding: 22,
@@ -249,11 +248,6 @@ const styles = StyleSheet.create({
     marginBottom: 5,
   },
 
-  readerName: {
-    color: "#137DC5",
-    fontWeight: "900",
-  },
-
   button: {
     width: 250,
     padding: 13,
@@ -270,7 +264,7 @@ const styles = StyleSheet.create({
   },
 
   waitingText: {
-    color: "#137DC5",
+    color: "#9c9c9c",
     fontSize: 18,
     fontWeight: "bold",
     marginTop: 25,

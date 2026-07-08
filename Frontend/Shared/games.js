@@ -58,7 +58,7 @@ const games = [
         "Jeg har aldrig kysset en fremmed i byen.",
         "Jeg har aldrig haft en sexvideo-opkald eller sexvideochat.",
         "Jeg har aldrig haft sex efter en bytur.",
-        "Jeg har aldrig haft et booty call.",
+        "Jeg har aldrig haft et booty call/eler være et booty call.",
         "Jeg har aldrig været forelsket i en flirt.",
         "Jeg har aldrig drukket shots, jeg ikke kunne huske navnet på.",
         "Jeg har aldrig mistet min pung på en bytur.",

@@ -144,9 +144,26 @@ const GamePlayScreen = () => {
       : card.text || null
     : "Der er ikke flere kort i dette spil.";
 
+  const getRoundLimit = (playerCount) => {
+    if (playerCount === 2) return 4;
+    if (playerCount === 3) return 5;
+    if (playerCount === 4) return 3;
+    if (playerCount === 5) return 4;
+    if (playerCount === 6) return 4;
+    if (playerCount === 7) return 5;
+    if (playerCount === 8) return 6;
+    if (playerCount === 9) return 6;
+    if (playerCount === 10) return 7;
+    if (playerCount === 11) return 8;
+    if (playerCount === 12) return 8;
+    if (playerCount === 13) return 9;
+    if (playerCount === 14) return 9;
+    return 10;
+  };
+
   const roundLimit =
     game.cardsPerRound === "players"
-      ? players.length
+      ? getRoundLimit(players.length)
       : game.cardsPerRound === "halfPlayers"
       ? players.length < 3
         ? players.length
@@ -157,18 +174,12 @@ const GamePlayScreen = () => {
     roundLimit && usedPlayerIndexes.length >= roundLimit;
 
   useEffect(() => {
-    socket.on("showGamePlay", (payload) => {
-      navigation.navigate("GamePlay", {
-        game: payload.game,
-        gameId: payload.gameId,
-        isHost,
-        players: payload.players,
-        card: payload.card,
-        usedIndexes: payload.usedIndexes,
-        usedPlayerIndexes: payload.usedPlayerIndexes,
-        currentPlayer: payload.currentPlayer,
-      });
-    });
+  socket.on("showGamePlay", (payload) => {
+    setCard(payload.card);
+    setUsedIndexes(payload.usedIndexes || []);
+    setUsedPlayerIndexes(payload.usedPlayerIndexes || []);
+    setCurrentPlayer(payload.currentPlayer || null);
+  });
 
     socket.on("showGameIntro", ({ gameId, game, players, reader }) => {
       navigation.navigate("GameIntro", {
@@ -230,13 +241,11 @@ const GamePlayScreen = () => {
   const handleNext = () => {
     if (reachedLimit) return;
 
-    const nextState = createNextState();
-
     socket.emit("showGamePlay", {
       gameId,
       game,
-      players,
-      ...nextState,
+      usedIndexes,
+      usedPlayerIndexes,
     });
   };
 
@@ -338,7 +347,7 @@ const GamePlayScreen = () => {
           )}
         </>
       ) : (
-        <Text style={styles.waitingText}>Venter på host...</Text>
+        <Text style={styles.waitingText}></Text>
       )}
     </ScrollView>
   );
@@ -493,7 +502,7 @@ const styles = StyleSheet.create({
   },
 
   waitingText: {
-    color: "#137DC5",
+    color: "#9c9c9c",
     fontSize: 18,
     fontWeight: "bold",
     marginTop: 25,

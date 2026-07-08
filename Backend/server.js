@@ -144,23 +144,23 @@ io.on("connection", (socket) => {
       return;
     }
 
+    const selectedReader = reader || getRandomPlayer(lobby.players);
+
     lobby.currentGame = game;
 
     io.to(gameId).emit("showGameIntro", {
       gameId,
       game,
       players: lobby.players,
-      reader,
+      reader: selectedReader,
     });
   });
 
   socket.on("showGamePlay", ({
     gameId,
     game,
-    card,
-    usedIndexes,
-    usedPlayerIndexes,
-    currentPlayer,
+    usedIndexes = [],
+    usedPlayerIndexes = [],
     reader,
   }) => {
     const lobby = games[gameId];
@@ -174,15 +174,19 @@ io.on("connection", (socket) => {
       return;
     }
 
+    const gamePlayState = createGamePlayState(
+      game,
+      lobby.players,
+      usedIndexes,
+      usedPlayerIndexes
+    );
+
     io.to(gameId).emit("showGamePlay", {
       gameId,
       game,
       players: lobby.players,
-      card,
-      usedIndexes,
-      usedPlayerIndexes,
-      currentPlayer,
       reader,
+      ...gamePlayState,
     });
   });
 
@@ -221,6 +225,82 @@ function generateGameId() {
 function getRandomGame() {
   const randomIndex = Math.floor(Math.random() * availableGames.length);
   return availableGames[randomIndex];
+}
+
+function getRandomIndex(items, usedIndexes = []) {
+  const availableIndexes = items
+    .map((_, index) => index)
+    .filter((index) => !usedIndexes.includes(index));
+
+  if (availableIndexes.length === 0) {
+    return null;
+  }
+
+  const randomIndex = Math.floor(Math.random() * availableIndexes.length);
+  return availableIndexes[randomIndex];
+}
+
+function getRandomPlayer(players) {
+  if (!players || players.length === 0) {
+    return null;
+  }
+
+  const randomIndex = Math.floor(Math.random() * players.length);
+  return players[randomIndex];
+}
+
+function createGamePlayState(game, players, usedIndexes = [], usedPlayerIndexes = []) {
+  let newUsedIndexes = [...usedIndexes];
+  let selectedCard = null;
+
+  if (game.screenType === "three_random_statements") {
+    const selectedCards = [];
+
+    for (let i = 0; i < 3; i++) {
+      if (newUsedIndexes.length === game.cards.length) {
+        newUsedIndexes = [];
+      }
+
+      const nextIndex = getRandomIndex(game.cards, newUsedIndexes);
+
+      if (nextIndex === null) break;
+
+      newUsedIndexes.push(nextIndex);
+      selectedCards.push(game.cards[nextIndex]);
+    }
+
+    selectedCard = selectedCards;
+  } else {
+    if (newUsedIndexes.length === game.cards.length) {
+      newUsedIndexes = [];
+    }
+
+    const nextIndex = getRandomIndex(game.cards, newUsedIndexes);
+
+    if (nextIndex !== null) {
+      newUsedIndexes.push(nextIndex);
+      selectedCard = game.cards[nextIndex];
+    }
+  }
+
+  let newUsedPlayerIndexes = [...usedPlayerIndexes];
+  let selectedPlayer = null;
+
+  if (game.mode === "player_turns") {
+    const nextPlayerIndex = getRandomIndex(players, newUsedPlayerIndexes);
+
+    if (nextPlayerIndex !== null) {
+      newUsedPlayerIndexes.push(nextPlayerIndex);
+      selectedPlayer = players[nextPlayerIndex];
+    }
+  }
+
+  return {
+    card: selectedCard,
+    usedIndexes: newUsedIndexes,
+    usedPlayerIndexes: newUsedPlayerIndexes,
+    currentPlayer: selectedPlayer,
+  };
 }
 
 server.listen(3000, () => {

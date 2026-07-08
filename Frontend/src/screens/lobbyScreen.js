@@ -150,7 +150,7 @@ const LobbyScreen = () => {
             <Text style={styles.buttonText}>Start spil</Text>
           </TouchableOpacity>
         ) : (
-          <Text style={styles.waitingText}>Venter på host...</Text>
+          <Text style={styles.waitingText}>Venter på hosten starter spillet...</Text>
         )}
 
         <TouchableOpacity onPress={() => navigation.navigate("Home")}>
@@ -287,7 +287,7 @@ const styles = StyleSheet.create({
   },
 
   waitingText: {
-    color: "#137DC5",
+    color: "#9c9c9c",
     fontSize: 18,
     fontWeight: "bold",
     marginBottom: 18,
