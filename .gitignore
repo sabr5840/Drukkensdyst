@@ -1,0 +1,39 @@
+# Dependencies
+**/node_modules/
+
+# Expo
+.expo/
+.expo-shared/
+
+# Metro
+.metro-health-check*
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# macOS
+.DS_Store
+
+# VS Code
+.vscode/
+
+# Environment variables
+.env
+.env.*
+
+# Backend uploads
+Backend/uploads/
+
+# Build
+dist/
+build/
+
+# React Native
+android/app/build/
+ios/build/
+
+# Temporary files
+*.tmp
