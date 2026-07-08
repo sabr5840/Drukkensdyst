@@ -6,6 +6,7 @@ const path = require("path");
 const fs = require("fs");
 
 const { games: availableGames } = require("../Frontend/Shared/games");
+
 const app = express();
 const uploadsDir = path.join(__dirname, "uploads");
 
@@ -175,13 +176,13 @@ io.on("connection", (socket) => {
       return;
     }
 
-  const gamePlayState = createGamePlayState(
-    game,
-    lobby.players,
-    usedIndexes,
-    usedPlayerIndexes,
-    turnCount
-  );
+    const gamePlayState = createGamePlayState(
+      game,
+      lobby.players,
+      usedIndexes,
+      usedPlayerIndexes,
+      turnCount
+    );
 
     io.to(gameId).emit("showGamePlay", {
       gameId,
@@ -192,7 +193,7 @@ io.on("connection", (socket) => {
     });
   });
 
-    socket.on("leaveGame", ({ gameId }) => {
+  socket.on("leaveGame", ({ gameId }) => {
     const lobby = games[gameId];
 
     if (!lobby) return;
@@ -278,6 +279,16 @@ function createGamePlayState(
   usedPlayerIndexes = [],
   turnCount = 0
 ) {
+  if (game.screenType === "hot_seat") {
+    return createHotSeatState(
+      game,
+      players,
+      usedIndexes,
+      usedPlayerIndexes,
+      turnCount
+    );
+  }
+
   let newUsedIndexes = [...usedIndexes];
   let selectedCard = null;
 
@@ -330,6 +341,48 @@ function createGamePlayState(
   return {
     card: selectedCard,
     usedIndexes: newUsedIndexes,
+    usedPlayerIndexes: newUsedPlayerIndexes,
+    currentPlayer: selectedPlayer,
+    turnCount: turnCount + 1,
+  };
+}
+
+function getRandomQuestionsFromCategory(questions, amount = 3) {
+  const shuffled = [...questions].sort(() => Math.random() - 0.5);
+  return shuffled.slice(0, amount);
+}
+
+function createHotSeatState(
+  game,
+  players,
+  usedIndexes = [],
+  usedPlayerIndexes = [],
+  turnCount = 0
+) {
+  let newUsedPlayerIndexes = [...usedPlayerIndexes];
+
+  if (newUsedPlayerIndexes.length === players.length) {
+    newUsedPlayerIndexes = [];
+  }
+
+  const nextPlayerIndex = getRandomIndex(players, newUsedPlayerIndexes);
+
+  if (nextPlayerIndex !== null) {
+    newUsedPlayerIndexes.push(nextPlayerIndex);
+  }
+
+  const selectedPlayer =
+    nextPlayerIndex !== null ? players[nextPlayerIndex] : null;
+
+  const selectedQuestions = {
+    green: getRandomQuestionsFromCategory(game.cards.green || [], 3),
+    orange: getRandomQuestionsFromCategory(game.cards.orange || [], 3),
+    red: getRandomQuestionsFromCategory(game.cards.red || [], 3),
+  };
+
+  return {
+    card: selectedQuestions,
+    usedIndexes,
     usedPlayerIndexes: newUsedPlayerIndexes,
     currentPlayer: selectedPlayer,
     turnCount: turnCount + 1,

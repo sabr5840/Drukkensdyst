@@ -1,4 +1,5 @@
-import React, { useEffect, useRef, useState } from "react";import {
+import React, { useEffect, useRef, useState } from "react";
+import {
   Text,
   TouchableOpacity,
   StyleSheet,
@@ -20,20 +21,6 @@ const GamePlayScreen = () => {
 
   const lastTitlePressRef = useRef(0);
 
-  const handleTitlePress = () => {
-    const now = Date.now();
-
-    if (now - lastTitlePressRef.current < 350) {
-      socket.emit("leaveGame", { gameId });
-      navigation.reset({
-        index: 0,
-        routes: [{ name: "Home" }],
-      });
-    }
-
-    lastTitlePressRef.current = now;
-  };
-
   const {
     game,
     gameId,
@@ -45,6 +32,21 @@ const GamePlayScreen = () => {
     currentPlayer: routeCurrentPlayer,
     turnCount: routeTurnCount,
   } = route.params;
+
+  const handleTitlePress = () => {
+    const now = Date.now();
+
+    if (now - lastTitlePressRef.current < 350) {
+      socket.emit("leaveGame", { gameId });
+
+      navigation.reset({
+        index: 0,
+        routes: [{ name: "Home" }],
+      });
+    }
+
+    lastTitlePressRef.current = now;
+  };
 
   const getNextGame = () => {
     const otherGames = games.filter((item) => item.id !== game.id);
@@ -60,107 +62,6 @@ const GamePlayScreen = () => {
   const [line1, line2] = game.headerTitle
     ? game.headerTitle.split("\n")
     : game.title.split(" ");
-
-  const getRandomIndex = (usedIndexes) => {
-    const availableIndexes = game.cards
-      .map((_, index) => index)
-      .filter((index) => !usedIndexes.includes(index));
-
-    if (availableIndexes.length === 0) {
-      return null;
-    }
-
-    const randomIndex = Math.floor(Math.random() * availableIndexes.length);
-    return availableIndexes[randomIndex];
-  };
-
-  const getThreeRandomCards = (usedIndexes) => {
-    const selectedCards = [];
-    let newUsedIndexes = [...usedIndexes];
-
-    for (let i = 0; i < 3; i++) {
-      if (newUsedIndexes.length === game.cards.length) {
-        newUsedIndexes = [];
-      }
-
-      const nextIndex = getRandomIndex(newUsedIndexes);
-
-      if (nextIndex === null) break;
-
-      newUsedIndexes.push(nextIndex);
-      selectedCards.push(game.cards[nextIndex]);
-    }
-
-    return {
-      cards: selectedCards,
-      usedIndexes: newUsedIndexes,
-    };
-  };
-
-  const getRandomPlayerIndex = (usedPlayerIndexes) => {
-    const availableIndexes = players
-      .map((_, index) => index)
-      .filter((index) => !usedPlayerIndexes.includes(index));
-
-    if (availableIndexes.length === 0) {
-      return null;
-    }
-
-    const randomIndex = Math.floor(Math.random() * availableIndexes.length);
-    return availableIndexes[randomIndex];
-  };
-
-  const createInitialState = () => {
-    let initialUsedIndexes = [];
-    let initialCard = null;
-
-    if (game.screenType === "three_random_statements") {
-      const result = getThreeRandomCards([]);
-      initialUsedIndexes = result.usedIndexes;
-      initialCard = result.cards;
-    } else {
-      const firstIndex = getRandomIndex([]);
-
-      if (firstIndex !== null) {
-        initialUsedIndexes = [firstIndex];
-        initialCard = game.cards[firstIndex];
-      }
-    }
-
-    const firstPlayerIndex = getRandomPlayerIndex([]);
-
-    return {
-      card: initialCard,
-      usedIndexes: initialUsedIndexes,
-      usedPlayerIndexes: firstPlayerIndex !== null ? [firstPlayerIndex] : [],
-      currentPlayer:
-        firstPlayerIndex !== null ? players[firstPlayerIndex] : null,
-    };
-  };
-
-  const initialState = createInitialState();
-
-  const [usedIndexes, setUsedIndexes] = useState(
-    routeUsedIndexes || initialState.usedIndexes
-  );
-
-  const [card, setCard] = useState(routeCard || initialState.card);
-
-  const [usedPlayerIndexes, setUsedPlayerIndexes] = useState(
-    routeUsedPlayerIndexes || initialState.usedPlayerIndexes
-  );
-
-  const [currentPlayer, setCurrentPlayer] = useState(
-    routeCurrentPlayer || initialState.currentPlayer
-  );
-
-  const [turnCount, setTurnCount] = useState(routeTurnCount || 0);
-
-  const cardText = card
-    ? typeof card === "string"
-      ? card
-      : card.text || null
-    : "Der er ikke flere kort i dette spil.";
 
   const getRoundLimit = (playerCount) => {
     if (playerCount === 2) return 4;
@@ -188,20 +89,36 @@ const GamePlayScreen = () => {
         : Math.ceil(players.length / 2)
       : game.cardsPerRound;
 
+  const [usedIndexes, setUsedIndexes] = useState(routeUsedIndexes || []);
+  const [usedPlayerIndexes, setUsedPlayerIndexes] = useState(
+    routeUsedPlayerIndexes || []
+  );
+  const [card, setCard] = useState(routeCard || null);
+  const [currentPlayer, setCurrentPlayer] = useState(
+    routeCurrentPlayer || null
+  );
+  const [turnCount, setTurnCount] = useState(routeTurnCount || 0);
+
+  const [selectedHotSeatCategory, setSelectedHotSeatCategory] = useState(null);
+
   const reachedLimit =
     roundLimit !== null && roundLimit !== undefined && turnCount >= roundLimit;
 
-
-
+  const cardText = card
+    ? typeof card === "string"
+      ? card
+      : card.text || null
+    : "Der er ikke flere kort i dette spil.";
 
   useEffect(() => {
-  socket.on("showGamePlay", (payload) => {
-    setCard(payload.card);
-    setUsedIndexes(payload.usedIndexes || []);
-    setUsedPlayerIndexes(payload.usedPlayerIndexes || []);
-    setCurrentPlayer(payload.currentPlayer || null);
-    setTurnCount(payload.turnCount || 0);
-  });
+    socket.on("showGamePlay", (payload) => {
+      setCard(payload.card);
+      setUsedIndexes(payload.usedIndexes || []);
+      setUsedPlayerIndexes(payload.usedPlayerIndexes || []);
+      setCurrentPlayer(payload.currentPlayer || null);
+      setTurnCount(payload.turnCount || 0);
+      setSelectedHotSeatCategory(null);
+    });
 
     socket.on("showGameIntro", ({ gameId, game, players, reader }) => {
       navigation.navigate("GameIntro", {
@@ -219,57 +136,16 @@ const GamePlayScreen = () => {
     };
   }, []);
 
-  const createNextState = () => {
-    let newUsedIndexes = [...usedIndexes];
-    let newCard = card;
-
-    if (game.screenType === "three_random_statements") {
-      const result = getThreeRandomCards(newUsedIndexes);
-      newUsedIndexes = result.usedIndexes;
-      newCard = result.cards;
-    } else {
-      if (newUsedIndexes.length === game.cards.length) {
-        newUsedIndexes = [];
-      }
-
-      const nextIndex = getRandomIndex(newUsedIndexes);
-
-      if (nextIndex !== null) {
-        newUsedIndexes.push(nextIndex);
-        newCard = game.cards[nextIndex];
-      }
-    }
-
-    let newUsedPlayerIndexes = [...usedPlayerIndexes];
-    let newCurrentPlayer = currentPlayer;
-
-    if (game.mode === "player_turns") {
-      const nextPlayerIndex = getRandomPlayerIndex(newUsedPlayerIndexes);
-
-      if (nextPlayerIndex !== null) {
-        newUsedPlayerIndexes.push(nextPlayerIndex);
-        newCurrentPlayer = players[nextPlayerIndex];
-      }
-    }
-
-    return {
-      card: newCard,
-      usedIndexes: newUsedIndexes,
-      usedPlayerIndexes: newUsedPlayerIndexes,
-      currentPlayer: newCurrentPlayer,
-    };
-  };
-
   const handleNext = () => {
     if (reachedLimit) return;
 
-  socket.emit("showGamePlay", {
-    gameId,
-    game,
-    usedIndexes,
-    usedPlayerIndexes,
-    turnCount,
-  });
+    socket.emit("showGamePlay", {
+      gameId,
+      game,
+      usedIndexes,
+      usedPlayerIndexes,
+      turnCount,
+    });
   };
 
   const handleEndRound = () => {
@@ -331,21 +207,78 @@ const GamePlayScreen = () => {
       )}
 
       <View style={styles.cardBox}>
-            {game.screenType === "three_random_statements" && Array.isArray(card) ? (
-              <>
-                {card.map((statement, index) => (
-                  <React.Fragment key={index}>
-                    <Text style={styles.statementText}>
-                      {statement}
-                    </Text>
+        {game.screenType === "hot_seat" ? (
+          currentPlayer?.id === socket.id ? (
+            <Text style={styles.cardText}>
+              Du er blevet valgt,{"\n"}
+              sæt dig godt til rette
+            </Text>
+          ) : selectedHotSeatCategory ? (
+            <ScrollView showsVerticalScrollIndicator={false}>
+              <TouchableOpacity onPress={() => setSelectedHotSeatCategory(null)}>
+                <Text style={styles.backCategoryText}>← Tilbage</Text>
+              </TouchableOpacity>
 
-                    {index < card.length - 1 && (
-                      <View style={styles.statementDivider} />
-                    )}
-                  </React.Fragment>
-                ))}
-              </>
-            ) : card?.optionA && card?.optionB ? (
+              <Text style={styles.hotSeatTitle}>
+                {selectedHotSeatCategory === "green"
+                  ? "Easy Going Edition"
+                  : selectedHotSeatCategory === "orange"
+                  ? "Buzz Edition"
+                  : "Hård Spiritus Edition"}
+              </Text>
+
+              {game.cards[selectedHotSeatCategory]?.map((question, index) => (
+                <Text key={index} style={styles.hotSeatQuestion}>
+                  {index + 1}. {question}
+                </Text>
+              ))}
+            </ScrollView>
+          ) : (
+          <View style={styles.categoryWrapper}>
+
+            <TouchableOpacity
+              onPress={() => setSelectedHotSeatCategory("green")}
+            >
+              <Image
+                source={require("../../assets/hot-seat-green.png")}
+                style={styles.categoryOnlyImage}
+              />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => setSelectedHotSeatCategory("orange")}
+            >
+              <Image
+                source={require("../../assets/hot-seat-orange.png")}
+                style={styles.categoryOnlyImage}
+              />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => setSelectedHotSeatCategory("red")}
+            >
+              <Image
+                source={require("../../assets/hot-seat-red.png")}
+                style={styles.categoryOnlyImage}
+              />
+            </TouchableOpacity>
+
+          </View>
+          )
+        ) : game.screenType === "three_random_statements" &&
+          Array.isArray(card) ? (
+          <>
+            {card.map((statement, index) => (
+              <React.Fragment key={index}>
+                <Text style={styles.statementText}>{statement}</Text>
+
+                {index < card.length - 1 && (
+                  <View style={styles.statementDivider} />
+                )}
+              </React.Fragment>
+            ))}
+          </>
+        ) : card?.optionA && card?.optionB ? (
           <>
             <Text style={styles.optionText}>{card.optionA}</Text>
             <Text style={styles.orText}>eller</Text>
@@ -363,13 +296,13 @@ const GamePlayScreen = () => {
             onPress={reachedLimit ? handleEndRound : handleNext}
           >
             <Text style={styles.buttonText}>
-              {reachedLimit ? "AFSLUT RUNDE" : "Næste"}
+              {reachedLimit ? "NÆSTE SPIL" : "Næste"}
             </Text>
           </TouchableOpacity>
 
           {!game.cardsPerRound && (
             <TouchableOpacity style={styles.endButton} onPress={handleEndRound}>
-              <Text style={styles.buttonText}>AFSLUT RUNDE</Text>
+              <Text style={styles.buttonText}>NÆSTE SPIL</Text>
             </TouchableOpacity>
           )}
         </>
@@ -457,7 +390,8 @@ const styles = StyleSheet.create({
 
   cardBox: {
     width: "100%",
-    minHeight: 210,
+    minHeight: 320,
+    maxHeight: 430,
     backgroundColor: "#e8e5fc",
     borderRadius: 28,
     padding: 24,
@@ -526,6 +460,68 @@ const styles = StyleSheet.create({
     fontSize: 20,
     textAlign: "center",
     fontWeight: "bold",
+  },
+
+  hotSeatTitle: {
+    fontSize: 24,
+    color: "#137DC5",
+    fontWeight: "bold",
+    textAlign: "center",
+    marginBottom: 18,
+  },
+
+  greenTitle: {
+    fontSize: 20,
+    color: "#137DC5",
+    fontWeight: "bold",
+    marginBottom: 8,
+    textAlign: "center",
+  },
+
+  orangeTitle: {
+    fontSize: 20,
+    color: "#137DC5",
+    fontWeight: "bold",
+    marginTop: 16,
+    marginBottom: 8,
+    textAlign: "center",
+  },
+
+  redTitle: {
+    fontSize: 20,
+    color: "#137DC5",
+    fontWeight: "bold",
+    marginTop: 16,
+    marginBottom: 8,
+    textAlign: "center",
+  },
+
+  hotSeatQuestion: {
+    fontSize: 14,
+    color: "#555",
+    fontWeight: "bold",
+    textAlign: "center",
+    lineHeight: 21,
+    marginBottom: 7,
+  },
+
+  categoryWrapper: {
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  categoryOnlyImage: {
+    width: 300,
+    height: 120,
+    resizeMode: "contain",
+    marginBottom: 5,
+  },
+
+  backCategoryText: {
+    color: "#137DC5",
+    fontWeight: "bold",
+    fontSize: 17,
+    marginBottom: 15,
   },
 
   waitingText: {

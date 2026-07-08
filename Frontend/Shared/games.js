@@ -607,8 +607,6 @@ const games = [
   ],
   },
 
-
-
   // SPIL : HVAD VIL DU HELST
   {
   id: "would_you_rather",
@@ -1743,7 +1741,129 @@ const games = [
   ],
 },
 
+  // SPIL: THE HOT SEAT
+  {
+    id: "hot_seat",
+    title: "The Hot Seat",
+    headerTitle: "The\nHOT SEAT",
 
+    mode: "player_turns",
+    cardsPerRound: "halfPlayers",
+    screenType: "hot_seat",
+
+    description:
+      "The Hot Seat sætter én deltager i centrum, mens gruppen stiller spørgsmål i forskellige niveauer.",
+
+    rules: [
+      "Én deltager bliver udvalgt til The Hot Seat.",
+      "De andre spillere vælger spørgsmål fra grøn, orange eller rød kategori.",
+      "Grøn er sjov og let, orange er akavet og afslørende, og rød er brutalt ærlig.",
+      "Den udvalgte spiller skal svare ærligt.",
+      "Hvis den udvalgte spiller nægter at svare, tager personen 3 tår.",
+    ],
+
+    cards: {
+      green: [
+      "Hvad er den bedste egenskab, du synes, du har?",
+      "Hvad ville dine tre nærmeste venner sige er din største styrke?",
+      "Hvad er noget, du er blevet meget bedre til de seneste år?",
+      "Hvilken beslutning er du mest stolt af at have taget?",
+      "Hvad er noget, du gerne vil blive bedre til som menneske?",
+      "Hvad gør dig virkelig glad i hverdagen?",
+      "Hvornår føler du dig mest som dig selv?",
+      "Hvad er noget, du er stolt af, men sjældent fortæller andre?",
+      "Hvad er den bedste kompliment, du nogensinde har fået?",
+      "Hvad betyder mest for dig i et forhold?",
+      "Hvad betyder mest for dig i et venskab?",
+      "Hvad er den vigtigste lektie, livet har lært dig indtil nu?",
+      "Hvilken person har haft størst betydning for den, du er i dag?",
+      "Hvad motiverer dig mest i livet?",
+      "Hvad er noget, du aldrig ville gå på kompromis med?",
+      "Hvad ville du ønske, flere mennesker vidste om dig?",
+      "Hvornår føler du dig mest selvsikker?",
+      "Hvad gør dig mest usikker?",
+      "Hvad er den største udfordring, du har overvundet?",
+      "Hvad er dit største mål lige nu?",
+      "Hvad er en vane, du er glad for, at du har?",
+      "Hvad er noget, du beundrer ved dig selv?",
+      "Hvad er noget, du misunder hos andre?",
+      "Hvad ville du ønske, dit yngre jeg vidste?",
+      "Hvad er den største misforståelse, folk har om dig?",
+      "Hvornår føler du, at du gør den største forskel for andre?",
+      "Hvad er det bedste råd, du nogensinde har fået?",
+      "Hvad er én ting, du aldrig ville ændre ved dig selv?",
+      "Hvad er du mest taknemmelig for i dit liv lige nu?",
+      "Hvad håber du, folk husker dig for?"
+      ],
+
+      orange: [
+      "Hvad er den største hemmelighed, du stadig holder skjult for dine nærmeste?",
+      "Hvad er den mest egoistiske ting, du nogensinde har gjort?",
+      "Hvad er den største løgn, du har fortalt, som ingen stadig har opdaget?",
+      "Hvad er den værste beslutning, du nogensinde har truffet?",
+      "Hvad er det mest pinlige, du nogensinde har gjort foran en person, du kunne lide?",
+      "Hvad er den største fejl, du aldrig har indrømmet overfor nogen?",
+      "Hvem har du såret mest i dit liv, og hvorfor?",
+      "Hvad er det mest umodne, du stadig gør?",
+      "Hvad er den længste løgn, du har holdt kørende?",
+      "Hvad er noget, du virkelig fortryder, men aldrig kan lave om på?",
+      "Hvad er det værste rygte, du har været med til at sprede?",
+      "Har du nogensinde været jaloux på en person, der egentlig fortjente sin succes?",
+      "Hvad er den største hemmelighed, du holder for din familie?",
+      "Hvad er den mest manipulerende ting, du har gjort for at få din vilje?",
+      "Hvad er den mest overfladiske grund til, at du har afvist nogen?",
+      "Hvad er det værste, du har gjort mod en ven?",
+      "Hvad er noget, du ville ønske, du aldrig havde sagt til nogen?",
+      "Hvad er den mest pinlige besked, du nogensinde har sendt?",
+      "Hvad er det værste, du nogensinde har gjort mod en partner eller eks?",
+      "Hvad er noget, du håber, ingen nogensinde finder ud af om dig?",
+      "Hvad er den største misforståelse, du aldrig har rettet?",
+      "Hvad er den mest ulovlige ting, du har gjort?",
+      "Hvad er det mest grænseoverskridende, du nogensinde har gjort?",
+      "Hvad er noget, du stadig har dårlig samvittighed over?",
+      "Hvornår følte du sidst, at du virkelig skuffede nogen?",
+      "Hvad er det mest uærlige, du har gjort for at beskytte dig selv?",
+      "Hvad er den største risiko, du har taget, som ingen kender til?",
+      "Hvad er det mest skamfulde øjeblik i dit liv?",
+      "Hvad er den største hemmelighed, du håber, du kan tage med i graven?",
+      "Hvilken oplevelse har ændret dig mest som menneske?"
+      ],
+
+      red: [
+      "Hvem i dette rum ville du mindst stole på med en stor hemmelighed, og hvorfor?",
+      "Hvem i dette rum ville du være mest flov over at date?",
+      "Hvem i dette rum tror du er den mest falske?",
+      "Hvem i dette rum ville du helst fjerne fra vennegruppen?",
+      "Hvem i dette rum tror du har det største ego?",
+      "Hvem i dette rum ville du mindst have lyst til at være strandet med i en uge?",
+      "Hvem i dette rum ville du aldrig præsentere for din familie?",
+      "Hvem i dette rum tror du taler mest bag andres ryg?",
+      "Hvem i dette rum tror du ville være den første til at være utro?",
+      "Hvem i dette rum ville du mindst stole på med dine penge?",
+      "Hvis du skulle blokere én person i dette rum resten af livet, hvem ville det være?",
+      "Hvem i dette rum tror du er den dårligste ven?",
+      "Hvem i dette rum ville du mindst have som roommate?",
+      "Hvem i dette rum tror du er mest dømmende overfor andre?",
+      "Hvem i dette rum ville du mindst have lyst til at arbejde sammen med?",
+      "Hvis du skulle bytte én person i dette rum ud med en anden, hvem ville det være?",
+      "Hvem i dette rum tror du skjuler mest om sig selv?",
+      "Hvem i dette rum tror du ville være den værste forælder?",
+      "Hvem i dette rum tror du har den dårligste moral?",
+      "Hvem i dette rum ville du være mest overrasket over blev anholdt?",
+      "Hvem i dette rum tror du har den største facade?",
+      "Hvem i dette rum ville du mindst have lyst til at være låst inde i et rum med i 24 timer?",
+      "Hvem i dette rum ville du stole mest på til at passe din partner?",
+      "Hvem i dette rum ville du stole mindst på til at passe din partner?",
+      "Hvem i dette rum ville du helst bytte liv med – og hvorfor?",
+      "Hvem i dette rum ville du mindst have lyst til at ligne?",
+      "Hvem i dette rum tror du er mest usikker, men skjuler det bedst?",
+      "Hvem i dette rum ville du helst slette fra dine kontakter?",
+      "Hvem i dette rum ville du vælge som din sidste nødkontakt – og hvorfor?",
+      "Hvis du absolut skulle vælge én person i dette rum som din livspartner, hvem ville det være?"
+
+      ],
+    },
+},
 
 ];
 
