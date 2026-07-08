@@ -203,6 +203,12 @@ const GamePlayScreen = () => {
           />
 
           <Text style={styles.currentPlayerName}>{currentPlayer.name}</Text>
+          {game.screenType === "hot_seat" &&
+            currentPlayer?.id !== socket.id && (
+              <Text style={styles.hotSeatSuggestionTitle}>
+                FORSLAG TIL SPØRGSMÅL
+              </Text>
+          )}
         </View>
       )}
 
@@ -370,7 +376,8 @@ const styles = StyleSheet.create({
 
   currentPlayerBox: {
     alignItems: "center",
-    marginBottom: 22,
+    marginTop: -33,
+    marginBottom: 18,
   },
 
   currentPlayerImage: {
@@ -397,7 +404,7 @@ const styles = StyleSheet.create({
     padding: 24,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 30,
+    marginBottom: 20,
   },
 
   cardText: {
@@ -478,6 +485,16 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
 
+  hotSeatSuggestionTitle: {
+    marginTop: 15,
+    marginBottom: -10,
+    fontSize: 20,
+    fontWeight: "900",
+    fontStyle: "italic",
+    color: "#9c9c9c",
+    letterSpacing: 1,
+  },
+
   orangeTitle: {
     fontSize: 20,
     color: "#137DC5",
@@ -486,6 +503,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     textAlign: "center",
   },
+
 
   redTitle: {
     fontSize: 20,
@@ -511,8 +529,8 @@ const styles = StyleSheet.create({
   },
 
   categoryOnlyImage: {
-    width: 300,
-    height: 120,
+    width: 315,
+    height: 135,
     resizeMode: "contain",
     marginBottom: 5,
   },
