@@ -20,7 +20,7 @@ export default function App() {
   useEffect(() => {
     const checkUser = async () => {
       const userData = await AsyncStorage.getItem("user");
-      setInitialRoute(userData ? "Home" : "CreateUser");
+      setInitialRoute(userData ? "Home" : "Intro");
     };
 
     checkUser();

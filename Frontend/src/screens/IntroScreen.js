@@ -1,5 +1,11 @@
 import React from "react";
-import { View, Text, TouchableOpacity, StyleSheet, Image } from "react-native";
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  Image,
+} from "react-native";
 import { useNavigation } from "@react-navigation/native";
 
 const IntroScreen = () => {
@@ -7,99 +13,101 @@ const IntroScreen = () => {
 
   return (
     <View style={styles.container}>
-      {/* Container for image and title */}
-      <View style={styles.header}>
-        {/* Billede */}
-        <Image
-          source={require("../../assets/logo.png")}
-          style={styles.image}
-        />
-        {/* Titel */}
-        <View style={styles.titleContainer}>
-          <Text style={styles.title}>Velkommen</Text>
-          <Text style={styles.title1}>Drukkens Dyst</Text>
-        </View>
-      </View>
+    <Image
+      source={require("../../assets/logo.png")}
+      style={styles.logo}
+    />
+    <Text style={styles.description}>
+      Grin, konkurrér og skål jer gennem en aften fyldt med{" "}
+      <Text style={styles.highlight}>udfordringer</Text>,{" "}
+      <Text style={styles.highlight}>drukspil</Text> og{" "}
+      <Text style={styles.highlight}>uventede twists</Text>.
 
-      <Text style={styles.description}>
-        <Text style={styles.boldText}>
-          Klar til at tage dine fester til næste niveau? {"\n\n"}
-        </Text>
-        <Text style={styles.boldText}>Drukkens Dyst</Text> er et sjovt, udfordrende og konkurrencepræget drukspil, 
-        hvor du og dine venner dyster i vanvittige udfordringer, quizzer og drikkelege! {"\n\n"}
-        Spillet kræver mindst 2 spillere og kan max have 15 spillere og spilles med selskabets mobiler. {"\n\n"}
-        <Text style={styles.boldText}>
-          Lad dysten begynde – er du klar?
-        </Text>
+      {"\n\n"}
+
+      Spillet spilles med alles telefoner og kræver mindst{" "}
+      <Text style={styles.playerHighlight}>2 spillere</Text>.
+      {"\n"}
+      Der kan deltage op til{" "}
+      <Text style={styles.playerHighlight}>15 spillere</Text>.
+
+      {"\n\n"}
+
+      <Text style={styles.finalText}>
+        Kun én kan blive aftenens fuldeste –
+        {"\n"}
+        er du klar til dysten?
       </Text>
+    </Text>
 
       <TouchableOpacity
         style={styles.button}
         onPress={() => navigation.navigate("CreateUser")}
       >
-        <Text style={styles.buttonText}>Kom igang</Text>
+        <Text style={styles.buttonText}>Kom i gang</Text>
       </TouchableOpacity>
     </View>
   );
 };
 
+export default IntroScreen;
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
     backgroundColor: "#e1e0e4",
-    padding: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 30,
+
   },
-  header: {
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    marginBottom: 30, 
+
+  logo: {
+    width: 330,
+    height: 180,
+    resizeMode: "contain",
+    marginBottom: 45,
   },
-  image: {
-    width: 80, 
-    height: 80, 
-    marginRight: 5, 
-    marginTop: 30,
-  },
-  titleContainer: {
-    justifyContent: 'center', 
-    alignItems: 'flex-start', 
-  },
-  title: {
-    fontSize: 35,
-    fontWeight: "bold",
-    color: "#e8e5fc",
-    marginTop: 25,
-    marginLeft: 15,
-  },
+
   boldText: {
     fontWeight: "bold",
   },
-  title1: {
-    fontSize: 35,
-    fontWeight: "bold",
-    color: "#e8e5fc",
-    marginRight: 30,
+
+  button: {
+    width: 250,
+    paddingVertical: 12,
+    borderRadius: 30,
+    backgroundColor: "#137DC5",
   },
-  description: {
+
+  buttonText: {
+    color: "white",
     fontSize: 22,
+    fontWeight: "bold",
+    textAlign: "center",
+  },
+
+  description: {
+    fontSize: 18,
     color: "#137DC5",
     textAlign: "center",
-    marginTop: 50,
+    lineHeight: 34,
+    marginBottom: 25,
+    marginTop: -35,
   },
-  button: {
-    backgroundColor: "#e8e5fc",
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 8,
-    marginTop: 100,
-  },
-  buttonText: {
-    fontSize: 18,
-    fontWeight: "bold",
+
+  highlight: {
     color: "#137DC5",
+    fontWeight: "bold",
+  },
+
+  playerHighlight: {
+    color: "#137DC5",
+    fontWeight: "bold",
+  },
+
+  finalText: {
+    color: "#137DC5",
+    fontWeight: "bold",
   },
 });
-
-export default IntroScreen;
