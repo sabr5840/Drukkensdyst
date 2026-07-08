@@ -480,7 +480,7 @@ const styles = StyleSheet.create({
     fontSize: 24,
     color: "#137DC5",
     fontWeight: "bold",
-    textAlign: "center",
+    textAlign: "left",
     marginBottom: 22,
   },
 
