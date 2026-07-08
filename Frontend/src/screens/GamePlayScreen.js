@@ -292,36 +292,33 @@ const GamePlayScreen = () => {
         )}
       </View>
 
-      {isHost ? (
-        <>
-          <TouchableOpacity
-            style={styles.nextButton}
-            onPress={
-              selectedHotSeatCategory
-                ? () => setSelectedHotSeatCategory(null)
-                : reachedLimit
-                ? handleEndRound
-                : handleNext
-            }
-          >
-            <Text style={styles.buttonText}>
-              {selectedHotSeatCategory
-                ? "Tilbage"
-                : reachedLimit
-                ? "NÆSTE SPIL"
-                : "Næste"}
-            </Text>
-          </TouchableOpacity>
+    {selectedHotSeatCategory ? (
+      <TouchableOpacity
+        style={styles.nextButton}
+        onPress={() => setSelectedHotSeatCategory(null)}
+      >
+        <Text style={styles.buttonText}>Tilbage</Text>
+      </TouchableOpacity>
+    ) : isHost ? (
+      <>
+        <TouchableOpacity
+          style={styles.nextButton}
+          onPress={reachedLimit ? handleEndRound : handleNext}
+        >
+          <Text style={styles.buttonText}>
+            {reachedLimit ? "NÆSTE SPIL" : "Næste"}
+          </Text>
+        </TouchableOpacity>
 
-          {!game.cardsPerRound && (
-            <TouchableOpacity style={styles.endButton} onPress={handleEndRound}>
-              <Text style={styles.buttonText}>NÆSTE SPIL</Text>
-            </TouchableOpacity>
-          )}
-        </>
-      ) : (
-        <Text style={styles.waitingText}></Text>
-      )}
+        {!game.cardsPerRound && (
+          <TouchableOpacity style={styles.endButton} onPress={handleEndRound}>
+            <Text style={styles.buttonText}>NÆSTE SPIL</Text>
+          </TouchableOpacity>
+        )}
+      </>
+    ) : (
+      <Text style={styles.waitingText}></Text>
+    )}
     </ScrollView>
   );
 };
