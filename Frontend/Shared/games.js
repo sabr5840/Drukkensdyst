@@ -1,4 +1,4 @@
-export const games = [
+const games = [
   
   //SPIL : JEG HAR ALDRIG
   {
@@ -1743,4 +1743,8 @@ export const games = [
   ],
 },
 
+
+
 ];
+
+module.exports = { games };

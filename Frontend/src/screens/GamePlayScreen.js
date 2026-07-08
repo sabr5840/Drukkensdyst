@@ -9,7 +9,7 @@ import {
   View,
 } from "react-native";
 import { useNavigation, useRoute } from "@react-navigation/native";
-import { games } from "../data/games";
+import { games } from "../../Shared/games";
 import socket from "../../services/socket";
 
 const GamePlayScreen = () => {

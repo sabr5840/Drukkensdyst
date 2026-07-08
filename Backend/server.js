@@ -5,6 +5,7 @@ const multer = require("multer");
 const path = require("path");
 const fs = require("fs");
 
+const { games: availableGames } = require("../Frontend/Shared/games");
 const app = express();
 const uploadsDir = path.join(__dirname, "uploads");
 
@@ -54,6 +55,7 @@ io.on("connection", (socket) => {
       id: gameId,
       players: [{ ...playerData, id: socket.id, isHost: true }],
       gameState: "waiting",
+      currentGame: null,
     };
 
     socket.join(gameId);
@@ -69,14 +71,14 @@ io.on("connection", (socket) => {
   });
 
   socket.on("joinGame", ({ gameId, name, profileImage }) => {
-    const game = games[gameId];
+    const lobby = games[gameId];
 
-    if (!game) {
+    if (!lobby) {
       socket.emit("gameError", "Spillet eksisterer ikke.");
       return;
     }
 
-    const existingPlayer = game.players.find((player) => player.name === name);
+    const existingPlayer = lobby.players.find((player) => player.name === name);
 
     if (existingPlayer) {
       socket.emit("gameError", "En spiller med det navn er allerede i spillet.");
@@ -90,20 +92,20 @@ io.on("connection", (socket) => {
       isHost: false,
     };
 
-    game.players.push(player);
+    lobby.players.push(player);
     socket.join(gameId);
 
     socket.emit("joinedGame", {
       gameId,
-      players: game.players,
+      players: lobby.players,
     });
 
-    io.to(gameId).emit("gamePlayers", game.players);
+    io.to(gameId).emit("gamePlayers", lobby.players);
 
     console.log(`${name} joinede spil ${gameId}`);
   });
 
-  socket.on("startGame", ({ gameId, game: selectedGame }) => {
+  socket.on("startGame", ({ gameId }) => {
     const lobby = games[gameId];
 
     if (!lobby) {
@@ -118,7 +120,10 @@ io.on("connection", (socket) => {
       return;
     }
 
+    const selectedGame = getRandomGame();
+
     lobby.gameState = "inProgress";
+    lobby.currentGame = selectedGame;
 
     io.to(gameId).emit("gameStarted", {
       gameId,
@@ -138,6 +143,8 @@ io.on("connection", (socket) => {
       socket.emit("gameError", "Kun hosten kan styre spillet.");
       return;
     }
+
+    lobby.currentGame = game;
 
     io.to(gameId).emit("showGameIntro", {
       gameId,
@@ -183,20 +190,20 @@ io.on("connection", (socket) => {
     console.log(`En spiller afbrudt: ${socket.id}`);
 
     for (const gameId in games) {
-      const game = games[gameId];
+      const lobby = games[gameId];
 
-      game.players = game.players.filter((player) => player.id !== socket.id);
+      lobby.players = lobby.players.filter((player) => player.id !== socket.id);
 
-      if (game.players.length === 0) {
+      if (lobby.players.length === 0) {
         delete games[gameId];
         continue;
       }
 
-      if (!game.players.some((player) => player.isHost)) {
-        game.players[0].isHost = true;
+      if (!lobby.players.some((player) => player.isHost)) {
+        lobby.players[0].isHost = true;
       }
 
-      io.to(gameId).emit("gamePlayers", game.players);
+      io.to(gameId).emit("gamePlayers", lobby.players);
     }
   });
 });
@@ -209,6 +216,11 @@ function generateGameId() {
   } while (games[gameId]);
 
   return gameId;
+}
+
+function getRandomGame() {
+  const randomIndex = Math.floor(Math.random() * availableGames.length);
+  return availableGames[randomIndex];
 }
 
 server.listen(3000, () => {

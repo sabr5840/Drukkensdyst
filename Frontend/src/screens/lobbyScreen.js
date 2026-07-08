@@ -12,7 +12,6 @@ import { useNavigation, useRoute } from "@react-navigation/native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import socket from "../../services/socket";
 import { LinearGradient } from "expo-linear-gradient";
-import { games } from "../data/games";
 
 const LobbyScreen = () => {
   const navigation = useNavigation();
@@ -90,13 +89,9 @@ const LobbyScreen = () => {
   }, []);
 
   const handleStartGame = () => {
-    const randomIndex = Math.floor(Math.random() * games.length);
-    const selectedGame = games[randomIndex];
-
-  socket.emit("startGame", {
-    gameId,
-    game: selectedGame,
-  });
+    socket.emit("startGame", {
+      gameId,
+    });
   };
 
   return (
