@@ -23,23 +23,23 @@ const LobbyScreen = () => {
   const [isHost, setIsHost] = useState(route.params?.isHost || false);
 
   useEffect(() => {
-    const setupLobby = async () => {
-      const userData = await AsyncStorage.getItem("user");
-      const user = userData ? JSON.parse(userData) : null;
+  const setupLobby = async () => {
+    const userData = await AsyncStorage.getItem("user");
+    const user = userData ? JSON.parse(userData) : null;
 
 
-      if (!user) {
-        navigation.navigate("CreateUser");
-        return;
-      }
-
-    if (isHost) {
-      socket.emit("createGame", {
-        name: user.name,
-        profileImage: user.profileImage,
-      });
+    if (!user) {
+      navigation.navigate("CreateUser");
+      return;
     }
-    };
+
+  if (isHost) {
+    socket.emit("createGame", {
+      name: user.name,
+        profileImage: user.profileImage,
+    });
+  }
+  };
 
     setupLobby();
 
@@ -54,16 +54,20 @@ const LobbyScreen = () => {
       setPlayers(players);
       setIsHost(false);
     });
-
     socket.on("gamePlayers", (updatedPlayers) => {
       setPlayers(updatedPlayers);
+
+      const currentPlayer = updatedPlayers.find((player) => player.id === socket.id);
+      setIsHost(currentPlayer?.isHost || false);
     });
 
     socket.on("gameStarted", ({ gameId, game, players }) => {
+      const currentPlayer = players.find((player) => player.id === socket.id);
+
       navigation.navigate("GameIntro", {
         game,
         gameId,
-        isHost,
+        isHost: currentPlayer?.isHost || false,
         players,
       });
     });
