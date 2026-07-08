@@ -1,5 +1,4 @@
-import React, { useEffect, useState } from "react";
-import {
+import React, { useEffect, useRef, useState } from "react";import {
   Text,
   TouchableOpacity,
   StyleSheet,
@@ -19,6 +18,22 @@ const GamePlayScreen = () => {
   const { height } = useWindowDimensions();
   const isSmallScreen = height < 750;
 
+  const lastTitlePressRef = useRef(0);
+
+  const handleTitlePress = () => {
+    const now = Date.now();
+
+    if (now - lastTitlePressRef.current < 350) {
+      socket.emit("leaveGame", { gameId });
+      navigation.reset({
+        index: 0,
+        routes: [{ name: "Home" }],
+      });
+    }
+
+    lastTitlePressRef.current = now;
+  };
+
   const {
     game,
     gameId,
@@ -28,6 +43,7 @@ const GamePlayScreen = () => {
     usedIndexes: routeUsedIndexes,
     usedPlayerIndexes: routeUsedPlayerIndexes,
     currentPlayer: routeCurrentPlayer,
+    turnCount: routeTurnCount,
   } = route.params;
 
   const getNextGame = () => {
@@ -138,6 +154,8 @@ const GamePlayScreen = () => {
     routeCurrentPlayer || initialState.currentPlayer
   );
 
+  const [turnCount, setTurnCount] = useState(routeTurnCount || 0);
+
   const cardText = card
     ? typeof card === "string"
       ? card
@@ -171,7 +189,10 @@ const GamePlayScreen = () => {
       : game.cardsPerRound;
 
   const reachedLimit =
-    roundLimit && usedPlayerIndexes.length >= roundLimit;
+    roundLimit !== null && roundLimit !== undefined && turnCount >= roundLimit;
+
+
+
 
   useEffect(() => {
   socket.on("showGamePlay", (payload) => {
@@ -179,6 +200,7 @@ const GamePlayScreen = () => {
     setUsedIndexes(payload.usedIndexes || []);
     setUsedPlayerIndexes(payload.usedPlayerIndexes || []);
     setCurrentPlayer(payload.currentPlayer || null);
+    setTurnCount(payload.turnCount || 0);
   });
 
     socket.on("showGameIntro", ({ gameId, game, players, reader }) => {
@@ -241,12 +263,13 @@ const GamePlayScreen = () => {
   const handleNext = () => {
     if (reachedLimit) return;
 
-    socket.emit("showGamePlay", {
-      gameId,
-      game,
-      usedIndexes,
-      usedPlayerIndexes,
-    });
+  socket.emit("showGamePlay", {
+    gameId,
+    game,
+    usedIndexes,
+    usedPlayerIndexes,
+    turnCount,
+  });
   };
 
   const handleEndRound = () => {
@@ -270,7 +293,11 @@ const GamePlayScreen = () => {
           style={styles.icon}
         />
 
-        <View style={styles.titleWrapper}>
+        <TouchableOpacity
+          style={styles.titleWrapper}
+          activeOpacity={1}
+          onPress={handleTitlePress}
+        >
           <Text style={styles.headerSmall}>{line1}</Text>
           <Text
             style={[
@@ -280,7 +307,7 @@ const GamePlayScreen = () => {
           >
             {line2 || ""}
           </Text>
-        </View>
+        </TouchableOpacity>
 
         <Image
           source={require("../../assets/phone_logo.png")}
@@ -304,21 +331,21 @@ const GamePlayScreen = () => {
       )}
 
       <View style={styles.cardBox}>
-        {game.screenType === "three_random_statements" ? (
-          <>
-            {card?.map((statement, index) => (
-              <React.Fragment key={index}>
-                <Text style={styles.statementText}>
-                  {statement}
-                </Text>
+            {game.screenType === "three_random_statements" && Array.isArray(card) ? (
+              <>
+                {card.map((statement, index) => (
+                  <React.Fragment key={index}>
+                    <Text style={styles.statementText}>
+                      {statement}
+                    </Text>
 
-                {index < card.length - 1 && (
-                  <View style={styles.statementDivider} />
-                )}
-              </React.Fragment>
-            ))}
-          </>
-        ) : card?.optionA && card?.optionB ? (
+                    {index < card.length - 1 && (
+                      <View style={styles.statementDivider} />
+                    )}
+                  </React.Fragment>
+                ))}
+              </>
+            ) : card?.optionA && card?.optionB ? (
           <>
             <Text style={styles.optionText}>{card.optionA}</Text>
             <Text style={styles.orText}>eller</Text>
@@ -423,7 +450,7 @@ const styles = StyleSheet.create({
 
   currentPlayerName: {
     fontSize: 20,
-    color: "#555",
+    color: "#137DC5",
     fontWeight: "bold",
     fontStyle: "italic",
   },

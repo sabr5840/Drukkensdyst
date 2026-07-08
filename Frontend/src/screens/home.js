@@ -47,9 +47,16 @@ const Home = () => {
           <Text style={styles.buttonText}>Join spil</Text>
         </TouchableOpacity>
 
-        {profileImage && (
-          <Image source={{ uri: profileImage }} style={styles.profileImage} />
-        )}
+        <TouchableOpacity onPress={() => navigation.navigate("EditProfile")}>
+          <Image
+            source={
+              profileImage
+                ? { uri: profileImage }
+                : require("../../assets/kamera.png")
+            }
+            style={styles.profileImage}
+          />
+        </TouchableOpacity>
 
         <Text style={styles.subTitle}>{userName || "Bruger navn"}</Text>
       </View>

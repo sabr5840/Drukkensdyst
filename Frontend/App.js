@@ -10,6 +10,7 @@ import JoinGame from "./src/screens/joinGame";
 import LobbyScreen from "./src/screens/lobbyScreen";
 import GameIntroScreen from "./src/screens/GameIntroScreen";
 import GamePlayScreen from "./src/screens/GamePlayScreen";
+import EditProfileScreen from "./src/screens/EditProfileScreen";
 
 const Stack = createNativeStackNavigator();
 
@@ -69,6 +70,12 @@ export default function App() {
         <Stack.Screen
           name="GamePlay"
           component={GamePlayScreen}
+          options={{ headerShown: false }}
+        />
+
+        <Stack.Screen
+          name="EditProfile"
+          component={EditProfileScreen}
           options={{ headerShown: false }}
         />
       </Stack.Navigator>

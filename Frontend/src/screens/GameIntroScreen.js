@@ -66,6 +66,7 @@ const GameIntroScreen = () => {
       usedPlayerIndexes: payload.usedPlayerIndexes,
       currentPlayer: payload.currentPlayer,
       reader: payload.reader,
+      turnCount: payload.turnCount,
     });
   });
 

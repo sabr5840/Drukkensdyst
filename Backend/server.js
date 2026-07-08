@@ -161,6 +161,7 @@ io.on("connection", (socket) => {
     game,
     usedIndexes = [],
     usedPlayerIndexes = [],
+    turnCount = 0,
     reader,
   }) => {
     const lobby = games[gameId];
@@ -174,12 +175,13 @@ io.on("connection", (socket) => {
       return;
     }
 
-    const gamePlayState = createGamePlayState(
-      game,
-      lobby.players,
-      usedIndexes,
-      usedPlayerIndexes
-    );
+  const gamePlayState = createGamePlayState(
+    game,
+    lobby.players,
+    usedIndexes,
+    usedPlayerIndexes,
+    turnCount
+  );
 
     io.to(gameId).emit("showGamePlay", {
       gameId,
@@ -188,6 +190,26 @@ io.on("connection", (socket) => {
       reader,
       ...gamePlayState,
     });
+  });
+
+    socket.on("leaveGame", ({ gameId }) => {
+    const lobby = games[gameId];
+
+    if (!lobby) return;
+
+    lobby.players = lobby.players.filter((player) => player.id !== socket.id);
+    socket.leave(gameId);
+
+    if (lobby.players.length === 0) {
+      delete games[gameId];
+      return;
+    }
+
+    if (!lobby.players.some((player) => player.isHost)) {
+      lobby.players[0].isHost = true;
+    }
+
+    io.to(gameId).emit("gamePlayers", lobby.players);
   });
 
   socket.on("disconnect", () => {
@@ -249,7 +271,13 @@ function getRandomPlayer(players) {
   return players[randomIndex];
 }
 
-function createGamePlayState(game, players, usedIndexes = [], usedPlayerIndexes = []) {
+function createGamePlayState(
+  game,
+  players,
+  usedIndexes = [],
+  usedPlayerIndexes = [],
+  turnCount = 0
+) {
   let newUsedIndexes = [...usedIndexes];
   let selectedCard = null;
 
@@ -287,6 +315,10 @@ function createGamePlayState(game, players, usedIndexes = [], usedPlayerIndexes 
   let selectedPlayer = null;
 
   if (game.mode === "player_turns") {
+    if (newUsedPlayerIndexes.length === players.length) {
+      newUsedPlayerIndexes = [];
+    }
+
     const nextPlayerIndex = getRandomIndex(players, newUsedPlayerIndexes);
 
     if (nextPlayerIndex !== null) {
@@ -300,6 +332,7 @@ function createGamePlayState(game, players, usedIndexes = [], usedPlayerIndexes 
     usedIndexes: newUsedIndexes,
     usedPlayerIndexes: newUsedPlayerIndexes,
     currentPlayer: selectedPlayer,
+    turnCount: turnCount + 1,
   };
 }
 
