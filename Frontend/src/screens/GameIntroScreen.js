@@ -44,20 +44,24 @@ const GameIntroScreen = () => {
 
   useEffect(() => {
     socket.on("showGameIntro", ({ gameId, game, players, reader }) => {
+      const currentPlayer = players.find((player) => player.id === socket.id);
+
       navigation.navigate("GameIntro", {
         game,
         gameId,
-        isHost,
+        isHost: currentPlayer?.isHost || false,
         players,
         reader,
       });
     });
 
     socket.on("showGamePlay", ({ gameId, game, players, reader }) => {
+      const currentPlayer = players.find((player) => player.id === socket.id);
+
       navigation.navigate("GamePlay", {
         game,
         gameId,
-        isHost,
+        isHost: currentPlayer?.isHost || false,
         players,
         reader,
       });
