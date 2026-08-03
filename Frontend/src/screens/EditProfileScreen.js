@@ -99,7 +99,7 @@ const EditProfileScreen = () => {
       type: "image/jpeg",
     });
 
-    const response = await fetch("http://10.0.0.28:3000/upload-profile-image", {
+    const response = await fetch("http://192.168.1.57:3000/upload-profile-image", {
       method: "POST",
       body: formData,
       headers: {

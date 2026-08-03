@@ -29,7 +29,7 @@ const storage = multer.diskStorage({
 const upload = multer({ storage });
 
 app.post("/upload-profile-image", upload.single("image"), (req, res) => {
-  const imageUrl = `http://10.0.0.28:3000/uploads/${req.file.filename}`;
+  const imageUrl = `http://192.168.1.57:3000/uploads/${req.file.filename}`;
 
   res.json({
     imageUrl,
