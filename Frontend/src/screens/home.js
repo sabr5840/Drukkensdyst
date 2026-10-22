@@ -35,7 +35,7 @@ const Home = () => {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Image source={require("../../assets/logo.png")} style={styles.logo} />
+        <Image source={require("../../assets/logo-.png")} style={styles.logo} />
       </View>
 
       <View style={styles.inputContainer}>

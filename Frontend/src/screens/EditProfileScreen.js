@@ -88,29 +88,46 @@ const EditProfileScreen = () => {
     }
   };
 
-  const uploadProfileImage = async (imageUri) => {
-    if (!imageUri) return null;
 
-    const formData = new FormData();
+const uploadProfileImage = async (imageUri) => {
+  if (!imageUri) return null;
 
-    formData.append("image", {
-      uri: imageUri,
-      name: "profile.jpg",
-      type: "image/jpeg",
-    });
+  const imageResponse = await fetch(imageUri);
 
-    const response = await fetch("http://192.168.1.57:3000/upload-profile-image", {
+  if (!imageResponse.ok) {
+    throw new Error("Kunne ikke læse billedet");
+  }
+
+  const imageBlob = await imageResponse.blob();
+
+  const formData = new FormData();
+  formData.append("image", imageBlob, "profile.jpg");
+
+  const response = await fetch(
+    "http://10.0.0.28:3000/upload-profile-image",
+    {
       method: "POST",
       body: formData,
-      headers: {
-        "Content-Type": "multipart/form-data",
-      },
-    });
+    }
+  );
 
-    const data = await response.json();
-    return data.imageUrl;
-  };
+  if (!response.ok) {
+    throw new Error(
+      "Billedupload fejlede: " + response.status
+    );
+  }
 
+  const data = await response.json();
+
+  if (!data.imageUrl) {
+    throw new Error(
+      "Serveren returnerede ingen billedadresse"
+    );
+  }
+
+  return data.imageUrl;
+};
+  
   const handleSaveProfile = async () => {
     if (!name.trim() || !profileImage) {
       Alert.alert("Udfyld navn og vælg billede");
@@ -145,7 +162,7 @@ const EditProfileScreen = () => {
         contentContainerStyle={styles.container}
         keyboardShouldPersistTaps="handled"
       >
-        <Image source={require("../../assets/logo.png")} style={styles.logo} />
+        <Image source={require("../../assets/logo-.png")} style={styles.logo} />
 
         <View style={styles.content}>
           <Text style={styles.subTitle}>Rediger dit navn</Text>

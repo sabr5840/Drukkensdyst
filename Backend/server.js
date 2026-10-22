@@ -29,7 +29,13 @@ const storage = multer.diskStorage({
 const upload = multer({ storage });
 
 app.post("/upload-profile-image", upload.single("image"), (req, res) => {
-  const imageUrl = `http://192.168.1.57:3000/uploads/${req.file.filename}`;
+  if (!req.file) {
+    return res.status(400).json({
+      error: "Intet billede modtaget",
+    });
+  }
+
+  const imageUrl = `http://10.0.0.28:3000/uploads/${req.file.filename}`;
 
   res.json({
     imageUrl,
@@ -57,6 +63,10 @@ io.on("connection", (socket) => {
       players: [{ ...playerData, id: socket.id, isHost: true }],
       gameState: "waiting",
       currentGame: null,
+
+      // Afstemningssystem
+      voting: null,
+      votingRound: 0,
     };
 
     socket.join(gameId);
@@ -184,12 +194,152 @@ io.on("connection", (socket) => {
       turnCount
     );
 
+    // ========================================
+    // OPRET AFSTEMNING TIL DET NYE SPØRGSMÅL
+    // ========================================
+
+    // Hver ny runde nulstiller den tidligere afstemning
+    lobby.voting = null;
+
+    const votingGameIds = [
+      "most_likely_to",
+      "would_you_rather",
+      "know_me",
+    ];
+
+    if (votingGameIds.includes(game.id)) {
+      let options = [];
+
+      // Hvem er mest tilbøjelig?
+      if (game.id === "most_likely_to") {
+        options = lobby.players.map((player) => ({
+          id: player.id,
+          label: player.name,
+        }));
+      }
+
+      // Hvad vil du helst?
+      if (game.id === "would_you_rather") {
+        options = [
+          { id: "A", label: gamePlayState.card.optionA },
+          { id: "B", label: gamePlayState.card.optionB },
+        ];
+      }
+
+      // Kender du mig?
+      if (game.id === "know_me") {
+        options = gamePlayState.card.map((statement, index) => ({
+          id: String(index),
+          label: statement,
+        }));
+      }
+
+      if (options.length > 0) {
+        lobby.votingRound += 1;
+
+        lobby.voting = {
+          roundId: lobby.votingRound,
+          gameId: game.id,
+          options,
+          votes: {},
+          revealed: false,
+        };
+      }
+    }
+
+
     io.to(gameId).emit("showGamePlay", {
       gameId,
       game,
       players: lobby.players,
       reader,
       ...gamePlayState,
+
+      // Sender afstemningen til alle deltagere
+      voting: lobby.voting
+        ? {
+            roundId: lobby.voting.roundId,
+            gameId: lobby.voting.gameId,
+            options: lobby.voting.options,
+            votedCount: 0,
+            totalCount: lobby.players.length,
+          }
+      : null,
+  });
+
+});
+
+
+  // ========================================
+  // AFSTEMNINGSSYSTEM
+  // ========================================
+
+  // En deltager afgiver sin stemme
+  socket.on("submitVote", ({ gameId, roundId, optionId }) => {
+    const lobby = games[gameId];
+
+    if (!lobby || !lobby.voting) return;
+
+    const voting = lobby.voting;
+
+    // Stemmen skal tilhøre den aktive runde
+    if (voting.roundId !== roundId || voting.revealed) return;
+
+    // Kun deltagere i festen må stemme
+    const player = lobby.players.find((p) => p.id === socket.id);
+    if (!player) return;
+
+    // Forhindrer dobbeltstemmer
+    if (Object.prototype.hasOwnProperty.call(voting.votes, socket.id)) {
+      return;
+    }
+
+    // Kontroller, at valgmuligheden findes
+    if (!voting.options.some((option) => option.id === optionId)) {
+      return;
+    }
+
+    voting.votes[socket.id] = optionId;
+
+    // Fortæl alle, hvor mange der har stemt,
+    // men ikke hvad de har stemt på
+    io.to(gameId).emit("voteProgress", {
+      roundId,
+      votedCount: Object.keys(voting.votes).length,
+      totalCount: lobby.players.length,
+    });
+  });
+
+  // Værten afslører afstemningen
+  socket.on("revealVotes", ({ gameId, roundId }) => {
+    const lobby = games[gameId];
+
+    if (!lobby || !lobby.voting) return;
+
+    const host = lobby.players.find(
+      (p) => p.id === socket.id && p.isHost
+    );
+
+    if (!host) return;
+
+    const voting = lobby.voting;
+
+    if (voting.roundId !== roundId || voting.revealed) return;
+
+    voting.revealed = true;
+
+    const results = voting.options.map((option) => ({
+      id: option.id,
+      label: option.label,
+      votes: Object.values(voting.votes).filter(
+        (vote) => vote === option.id
+      ).length,
+    }));
+
+    io.to(gameId).emit("voteResults", {
+      roundId,
+      results,
+      totalVotes: Object.keys(voting.votes).length,
     });
   });
 

@@ -73,7 +73,7 @@ const JoinGame = () => {
         contentContainerStyle={styles.container}
         keyboardShouldPersistTaps="handled"
       >
-        <Image source={require("../../assets/logo.png")} style={styles.logo} />
+        <Image source={require("../../assets/logo-.png")} style={styles.logo} />
 
         <Text style={styles.title}>Indtast festkode</Text>
 

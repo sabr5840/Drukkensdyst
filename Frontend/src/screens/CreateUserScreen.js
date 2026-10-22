@@ -14,6 +14,7 @@ import {
 import { useNavigation } from "@react-navigation/native";
 import * as ImagePicker from "expo-image-picker";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as FileSystem from "expo-file-system/legacy";
 
 const CreateUserScreen = () => {
   const navigation = useNavigation();
@@ -75,27 +76,35 @@ const CreateUserScreen = () => {
   const uploadProfileImage = async (imageUri) => {
     if (!imageUri) return null;
 
-    const formData = new FormData();
+    console.log("UPLOAD 1: Starter");
 
-    formData.append("image", {
-      uri: imageUri,
-      name: "profile.jpg",
-      type: "image/jpeg",
-    });
+    const result = await FileSystem.uploadAsync(
+      "http://10.0.0.28:3000/upload-profile-image",
+      imageUri,
+      {
+        fieldName: "image",
+        httpMethod: "POST",
+        uploadType: FileSystem.FileSystemUploadType.MULTIPART,
+        mimeType: "image/jpeg",
+        parameters: {},
+      }
+    );
 
-    const response = await fetch("http://192.168.1.57:3000/upload-profile-image", {
-      method: "POST",
-      body: formData,
-      headers: {
-        "Content-Type": "multipart/form-data",
-      },
-    });
+    console.log("UPLOAD 2: Serverstatus:", result.status);
+    console.log("UPLOAD 3: Serverens svar:", result.body);
 
-    const data = await response.json();
+    if (result.status < 200 || result.status >= 300) {
+      throw new Error("Billedupload fejlede: " + result.status);
+    }
+
+    const data = JSON.parse(result.body);
+
+    if (!data.imageUrl) {
+      throw new Error("Serveren returnerede ingen billedadresse");
+    }
+
     return data.imageUrl;
   };
-
-
 
   const handleCreateUser = async () => {
     if (!name.trim() || !profileImage) {
@@ -130,7 +139,7 @@ const CreateUserScreen = () => {
         contentContainerStyle={styles.container}
         keyboardShouldPersistTaps="handled"
       >
-        <Image source={require("../../assets/logo.png")} style={styles.logo} />
+        <Image source={require("../../assets/logo-.png")} style={styles.logo} />
 
         <View style={styles.content}>
           <Text style={styles.subTitle}>Hvad hedder du?</Text>

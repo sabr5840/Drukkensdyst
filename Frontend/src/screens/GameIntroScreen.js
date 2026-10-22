@@ -101,7 +101,7 @@ const GameIntroScreen = () => {
     >
       <View style={styles.header}>
         <Image
-          source={require("../../assets/phone_logo.png")}
+          source={require("../../assets/logo-.png")}
           style={styles.icon}
         />
 
@@ -118,7 +118,7 @@ const GameIntroScreen = () => {
         </View>
 
         <Image
-          source={require("../../assets/phone_logo.png")}
+          source={require("../../assets/logo-.png")}
           style={styles.icon}
         />
       </View>

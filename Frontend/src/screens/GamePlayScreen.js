@@ -93,11 +93,16 @@ const GamePlayScreen = () => {
   const [usedPlayerIndexes, setUsedPlayerIndexes] = useState(
     routeUsedPlayerIndexes || []
   );
+  const [turnCount, setTurnCount] = useState(routeTurnCount || 0);
   const [card, setCard] = useState(routeCard || null);
   const [currentPlayer, setCurrentPlayer] = useState(
     routeCurrentPlayer || null
   );
-  const [turnCount, setTurnCount] = useState(routeTurnCount || 0);
+  // Afstemning
+  const [voting, setVoting] = useState(route.params.voting || null);
+  const [selectedVote, setSelectedVote] = useState(null);
+  const [voteProgress, setVoteProgress] = useState(null);
+  const [voteResults, setVoteResults] = useState(null);
 
   const [selectedHotSeatCategory, setSelectedHotSeatCategory] = useState(null);
 
@@ -118,6 +123,41 @@ const GamePlayScreen = () => {
       setCurrentPlayer(payload.currentPlayer || null);
       setTurnCount(payload.turnCount || 0);
       setSelectedHotSeatCategory(null);
+
+      // Ny afstemning starter
+      setVoting(payload.voting || null);
+      setSelectedVote(null);
+      setVoteProgress(null);
+      setVoteResults(null);
+    });
+
+
+    // Opdater antallet af afgivne stemmer
+    socket.on("voteProgress", (payload) => {
+      setVoting((currentVoting) => {
+        if (!currentVoting || currentVoting.roundId !== payload.roundId) {
+          return currentVoting;
+        }
+
+        setVoteProgress({
+          votedCount: payload.votedCount,
+          totalCount: payload.totalCount,
+        });
+
+        return currentVoting;
+      });
+    });
+
+    // Modtag resultatet, når værten afslører stemmerne
+    socket.on("voteResults", (payload) => {
+      setVoting((currentVoting) => {
+        if (!currentVoting || currentVoting.roundId !== payload.roundId) {
+          return currentVoting;
+        }
+
+        setVoteResults(payload);
+        return currentVoting;
+      });
     });
 
     socket.on("showGameIntro", ({ gameId, game, players, reader }) => {
@@ -133,10 +173,50 @@ const GamePlayScreen = () => {
     return () => {
       socket.off("showGamePlay");
       socket.off("showGameIntro");
+      socket.off("voteProgress");
+      socket.off("voteResults");
     };
   }, []);
 
+
+  // ========================================
+  // AFGIV STEMME
+  // ========================================
+
+  const handleVote = (optionId) => {
+    if (!voting) return;
+    if (selectedVote !== null) return;
+    if (voteResults) return;
+
+    setSelectedVote(optionId);
+
+    socket.emit("submitVote", {
+      gameId,
+      roundId: voting.roundId,
+      optionId,
+    });
+  };
+
+  // ========================================
+  // AFSLØR STEMMER
+  // ========================================
+
+  const handleRevealVotes = () => {
+    if (!isHost) return;
+    if (!voting) return;
+    if (voteResults) return;
+
+    socket.emit("revealVotes", {
+      gameId,
+      roundId: voting.roundId,
+    });
+  };
+
+
   const handleNext = () => {
+    // Vent med næste spørgsmål, indtil stemmerne er afsløret
+    if (voting && !voteResults) return;
+
     if (reachedLimit) return;
 
     socket.emit("showGamePlay", {
@@ -149,6 +229,9 @@ const GamePlayScreen = () => {
   };
 
   const handleEndRound = () => {
+    // Afslut ikke spillet, før stemmerne er afsløret
+    if (voting && !voteResults) return;
+
     socket.emit("showGameIntro", {
       gameId,
       game: getNextGame(),
@@ -165,7 +248,7 @@ const GamePlayScreen = () => {
     >
       <View style={styles.header}>
         <Image
-          source={require("../../assets/phone_logo.png")}
+          source={require("../../assets/logo-.png")}
           style={styles.icon}
         />
 
@@ -186,7 +269,7 @@ const GamePlayScreen = () => {
         </TouchableOpacity>
 
         <Image
-          source={require("../../assets/phone_logo.png")}
+          source={require("../../assets/logo-.png")}
           style={styles.icon}
         />
       </View>
@@ -292,6 +375,124 @@ const GamePlayScreen = () => {
         )}
       </View>
 
+      {/* ========================================
+            AFSTEMNING
+        ======================================== */}
+
+        {voting && Array.isArray(voting.options) && !voteResults && (
+          <View style={{ width: "100%", alignItems: "center", marginBottom: 20 }}>
+
+            <Text style={styles.waitingText}>
+              {selectedVote !== null
+                ? "Din stemme er registreret!"
+                : "AFGIV DIN STEMME"}
+            </Text>
+
+            {voting.options.map((option) => (
+              <TouchableOpacity
+                key={String(option.id)}
+                style={[
+                  styles.nextButton,
+                  {
+                    width: "100%",
+                    backgroundColor:
+                      selectedVote === option.id ? "#2f56a6" : "#137DC5",
+                    opacity:
+                      selectedVote !== null && selectedVote !== option.id ? 0.5 : 1,
+                    marginBottom: 12,
+                  },
+                ]}
+                disabled={selectedVote !== null}
+                onPress={() => handleVote(option.id)}
+              >
+                <Text style={styles.buttonText}>
+                  {option.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+
+            <Text style={styles.waitingText}>
+              {voteProgress?.votedCount ?? voting.votedCount ?? 0}
+              {" / "}
+              {voteProgress?.totalCount ?? voting.totalCount ?? players.length}
+              {" har stemt"}
+            </Text>
+
+          </View>
+        )}
+
+        {/* ========================================
+            RESULTAT AF AFSTEMNING
+        ======================================== */}
+
+        {voting && voteResults && (
+          <View
+            style={{
+              width: "100%",
+              alignItems: "center",
+              marginBottom: 25,
+            }}
+          >
+            <Text
+              style={{
+                fontSize: 24,
+                fontWeight: "bold",
+                color: "#2f56a6",
+                marginBottom: 20,
+              }}
+            >
+              RESULTAT
+            </Text>
+
+            {voting.options.map((option) => {
+              const count =
+              voteResults.results?.find(
+                (result) => result.id === option.id
+              )?.votes ?? 0;
+
+              return (
+                <View
+                  key={String(option.id)}
+                  style={{
+                    width: "100%",
+                    backgroundColor: "#e8e5fc",
+                    padding: 16,
+                    borderRadius: 18,
+                    marginBottom: 12,
+                  }}
+                >
+                  <Text
+                    style={{
+                      fontSize: 18,
+                      fontWeight: "bold",
+                      color: "#2f56a6",
+                      textAlign: "center",
+                    }}
+                  >
+                    {option.label}
+                  </Text>
+
+                  <Text
+                    style={{
+                      fontSize: 20,
+                      fontWeight: "bold",
+                      color: "#137DC5",
+                      textAlign: "center",
+                      marginTop: 8,
+                    }}
+                  >
+                    {count} {count === 1 ? "stemme" : "stemmer"}
+                  </Text>
+                </View>
+              );
+            })}
+          </View>
+        )}
+
+
+
+
+
     {selectedHotSeatCategory ? (
       <TouchableOpacity
         style={styles.nextButton}
@@ -309,6 +510,25 @@ const GamePlayScreen = () => {
             {reachedLimit ? "NÆSTE SPIL" : "Næste"}
           </Text>
         </TouchableOpacity>
+
+        {/* Værten kan afsløre stemmerne */}
+        {voting && !voteResults && (
+          <TouchableOpacity
+            style={[
+              styles.nextButton,
+              {
+                backgroundColor: "#2f56a6",
+                width: 280,
+                marginBottom: 15,
+              },
+            ]}
+            onPress={handleRevealVotes}
+          >
+            <Text style={styles.buttonText}>
+              AFSLØR STEMMER
+            </Text>
+          </TouchableOpacity>
+        )}
 
         {!game.cardsPerRound && (
           <TouchableOpacity style={styles.endButton} onPress={handleEndRound}>

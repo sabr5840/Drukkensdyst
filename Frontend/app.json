@@ -2,6 +2,10 @@
   "expo": {
     "name": "drukspil_app",
     "slug": "drukspil_app",
-    "version": "1.0.0"
+    "version": "1.0.0",
+    "plugins": [
+      "expo-status-bar",
+      "expo-asset"
+    ]
   }
 }
