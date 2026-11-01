@@ -311,6 +311,11 @@ const games = [
   mode: "normal",
   cardsPerRound: 10,
 
+  votingEnabled: true,
+  votingType: "players",
+  resultsTop: 3,
+  showVoters: "random",
+
   description:
     "Et klassisk festspil hvor alle peger på den person, de mener passer bedst til udsagnet. Det handler om ærlighed, sjove historier og masser af grin.",
 

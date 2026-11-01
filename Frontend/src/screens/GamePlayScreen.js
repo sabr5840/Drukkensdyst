@@ -1,25 +1,489 @@
-import React, { useEffect, useRef, useState } from "react";
+
+import React, {
+  useEffect,
+  useRef,
+  useState,
+} from "react";
+
 import {
+  View,
   Text,
   TouchableOpacity,
   StyleSheet,
   Image,
   ScrollView,
   useWindowDimensions,
-  View,
 } from "react-native";
-import { useNavigation, useRoute } from "@react-navigation/native";
+
+import {
+  useNavigation,
+  useRoute,
+} from "@react-navigation/native";
+
+import Svg, { Path } from "react-native-svg";
+
 import { games } from "../../Shared/games";
 import socket from "../../services/socket";
+import MostLikelyVoting from "./MostLikelyVoting";
+
+
+const API_URL = "http://10.0.0.28:3000";
+
+const getProfileImageUri = (image) => {
+  if (!image || typeof image !== "string") return null;
+
+  if (
+    image.startsWith("file:") ||
+    image.startsWith("content:") ||
+    image.startsWith("data:")
+  ) {
+    return image;
+  }
+
+  const filename = image.split("?")[0].split("/").pop();
+
+  return `${API_URL}/uploads/${filename}`;
+};
+
+
+/**
+ * =====================================================
+ * COLORS
+ * =====================================================
+ */
+
+const COLORS = {
+  background: "#f8f3ef",
+  navy: "#0b2250",
+  blue: "#14558A",
+  lightBlue: "#dbe6f1",
+  muted: "#647594",
+  white: "#ffffff",
+  pink: "#F8DAD7",
+};
+
+/**
+ * =====================================================
+ * GAME LOGOS
+ * =====================================================
+ */
+
+const GAME_LOGOS = {
+  "jeg har aldrig": require(
+    "../../assets/Jeg-har-aldrig.png"
+  ),
+
+  "kender du mig": require(
+    "../../assets/kender-du-mig.png"
+  ),
+
+  "hvad vil du helst": require(
+    "../../assets/Hvad-vil-du-helst.png"
+  ),
+
+  "hvem er mest tilbojelig til": require(
+    "../../assets/Hvem-er-mest-tilbøjelig-til.png"
+  ),
+
+  "the hot seat": require(
+    "../../assets/The-Hot-Seat.png"
+  ),
+};
+
+/**
+ * =====================================================
+ * NORMALIZE GAME NAME
+ * =====================================================
+ */
+
+const normalizeGameName = (value = "") =>
+  String(value)
+    .toLowerCase()
+    .trim()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/ø/g, "o")
+    .replace(/æ/g, "ae")
+    .replace(/å/g, "a")
+    .replace(/[?!]/g, "")
+    .replace(/\s+/g, " ");
+
+/**
+ * =====================================================
+ * BACKGROUND BLOBS
+ * =====================================================
+ */
+
+const Blob = ({
+  width,
+  height,
+  style,
+  rotation = 0,
+}) => (
+  <View
+    pointerEvents="none"
+    style={[
+      {
+        width,
+        height,
+        transform: [
+          { rotate: `${rotation}deg` },
+        ],
+      },
+      style,
+    ]}
+  >
+    <Svg
+      width="100%"
+      height="100%"
+      viewBox="0 0 400 400"
+    >
+      <Path
+        d="
+          M 205 25
+          C 270 15, 295 60, 345 65
+          C 395 75, 370 135, 382 185
+          C 395 250, 365 280, 345 325
+          C 310 370, 265 355, 215 382
+          C 165 405, 125 360, 80 340
+          C 35 315, 45 260, 20 220
+          C -5 175, 35 135, 55 90
+          C 80 40, 145 30, 205 25
+          Z
+        "
+        fill={COLORS.lightBlue}
+      />
+    </Svg>
+  </View>
+);
+
+/**
+ * =====================================================
+ * PLAYER PHOTO
+ * =====================================================
+ */
+
+
+const getPlayerImage = (player) => {
+  const photo =
+    player?.profileImage ||
+    player?.profilePicture ||
+    player?.avatar ||
+    player?.photo ||
+    player?.image;
+
+  if (!photo) return null;
+
+  if (typeof photo === "object") {
+    return photo;
+  }
+
+  const imageUri = getProfileImageUri(photo);
+
+  return imageUri ? { uri: imageUri } : null;
+};
+
+
+/**
+ * =====================================================
+ * PLAYER AVATAR
+ * =====================================================
+ */
+
+const PlayerAvatar = ({
+  player,
+  size = 86,
+}) => {
+  const imageSource = getPlayerImage(player);
+
+  return (
+    <View
+      style={{
+        width: size,
+        height: size,
+        borderRadius: size / 2,
+        overflow: "hidden",
+        backgroundColor: COLORS.lightBlue,
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+    >
+      {imageSource ? (
+        <Image
+          source={imageSource}
+          style={{
+            width: size,
+            height: size,
+          }}
+          resizeMode="cover"
+        />
+      ) : (
+        <Text
+          style={{
+            fontSize: size * 0.34,
+            fontWeight: "800",
+            color: COLORS.navy,
+          }}
+        >
+          {(player?.name || "?")
+            .charAt(0)
+            .toUpperCase()}
+        </Text>
+      )}
+    </View>
+  );
+};
+
+/**
+ * =====================================================
+ * AUTOMATIC CARD FONT SIZE
+ * =====================================================
+ */
+
+const getInitialFontSize = (
+  text = "",
+  cardWidth = 350
+) => {
+  const length = String(text).length;
+
+  const scale = Math.min(
+    cardWidth / 350,
+    1
+  );
+
+  let size = 33;
+
+  if (length > 130) {
+    size = 17;
+  } else if (length > 105) {
+    size = 19;
+  } else if (length > 85) {
+    size = 21;
+  } else if (length > 65) {
+    size = 24;
+  } else if (length > 45) {
+    size = 27;
+  } else if (length > 30) {
+    size = 30;
+  }
+
+  return Math.round(size * scale);
+};
+
+/**
+ * =====================================================
+ * RESPONSIVE CARD TEXT
+ * =====================================================
+ */
+
+const ResponsiveCardText = ({
+  text,
+  cardWidth,
+  cardHeight,
+}) => {
+  const initialFontSize = getInitialFontSize(
+    text,
+    cardWidth
+  );
+
+  const [fontSize, setFontSize] = useState(
+    initialFontSize
+  );
+
+  const availableHeight = cardHeight * 0.43;
+
+  useEffect(() => {
+    setFontSize(initialFontSize);
+  }, [text, initialFontSize]);
+
+  const handleTextLayout = (event) => {
+    const lines =
+      event.nativeEvent.lines || [];
+
+    if (!lines.length) return;
+
+    const measuredHeight = lines.reduce(
+      (total, line) =>
+        total + (line.height || 0),
+      0
+    );
+
+    if (
+      measuredHeight > availableHeight &&
+      fontSize > 13
+    ) {
+      setFontSize((previous) =>
+        Math.max(previous - 1, 13)
+      );
+    }
+  };
+
+  return (
+    <View
+      style={{
+        position: "absolute",
+        left: cardWidth * 0.17 + 18,
+        right: cardWidth * 0.17,
+        top: cardHeight * 0.18 + 18,
+        height: availableHeight,
+        alignItems: "center",
+        justifyContent: "center",
+        overflow: "hidden",
+      }}
+    >
+      <Text
+        onTextLayout={handleTextLayout}
+        adjustsFontSizeToFit
+        minimumFontScale={0.35}
+        numberOfLines={12}
+        style={{
+          color: COLORS.white,
+          fontSize,
+          fontWeight: "800",
+          lineHeight: Math.round(
+            fontSize * 1.25
+          ),
+          textAlign: "center",
+          includeFontPadding: false,
+        }}
+      >
+        {text}
+      </Text>
+    </View>
+  );
+};
+
+/**
+ * =====================================================
+ * JEG HAR ALDRIG – CARD
+ * =====================================================
+ */
+
+const NeverHaveIEverCard = ({
+  text,
+  width,
+}) => {
+  const cardWidth = Math.min(
+    width * 0.82,
+    370
+  );
+
+  const cardHeight = cardWidth * 1.12;
+
+  return (
+    <View
+      style={{
+        width: cardWidth,
+        height: cardHeight,
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+    >
+      <Svg
+        width="100%"
+        height="100%"
+        viewBox="0 0 400 450"
+        preserveAspectRatio="none"
+        style={StyleSheet.absoluteFill}
+      >
+        <Path
+          d="
+            M 145 25
+            C 200 -5, 265 30, 310 28
+            C 365 20, 390 65, 385 120
+            C 378 170, 405 210, 385 255
+            C 405 305, 365 345, 325 365
+            C 280 390, 245 440, 190 425
+            C 140 408, 105 440, 65 400
+            C 20 365, 30 320, 12 280
+            C -5 240, 25 205, 48 165
+            C 72 125, 78 65, 145 25
+            Z
+          "
+          fill={COLORS.lightBlue}
+        />
+      </Svg>
+
+      <ResponsiveCardText
+        text={text}
+        cardWidth={cardWidth}
+        cardHeight={cardHeight}
+      />
+
+      <Image
+        source={require(
+          "../../assets/glas-mod-højre.png"
+        )}
+        resizeMode="contain"
+        style={{
+          position: "absolute",
+          width: cardWidth * 0.25,
+          height: cardWidth * 0.35,
+          right: cardWidth * 0.24,
+          top: cardHeight * 0.73,
+          zIndex: 3,
+        }}
+      />
+
+      <Image
+        source={require(
+          "../../assets/glas-mod-venstre.png"
+        )}
+        resizeMode="contain"
+        style={{
+          position: "absolute",
+          width: cardWidth * 0.29,
+          height: cardWidth * 0.39,
+          right: -cardWidth * 0.025,
+          top: cardHeight * 0.67,
+          zIndex: 3,
+        }}
+      />
+
+      <Image
+        source={require(
+          "../../assets/effekt.png"
+        )}
+        resizeMode="contain"
+        style={{
+          position: "absolute",
+          width: cardWidth * 0.15,
+          height: cardWidth * 0.25,
+          right: cardWidth * 0.21,
+          top: cardHeight * 0.57,
+          transform: [
+            { rotate: "-25deg" },
+          ],
+          zIndex: 4,
+        }}
+      />
+    </View>
+  );
+};
+
+/**
+ * =====================================================
+ * GAME PLAY SCREEN
+ * =====================================================
+ */
 
 const GamePlayScreen = () => {
   const navigation = useNavigation();
   const route = useRoute();
 
-  const { height } = useWindowDimensions();
+  const { width, height } =
+    useWindowDimensions();
+
   const isSmallScreen = height < 750;
 
   const lastTitlePressRef = useRef(0);
+  const advancingRef = useRef(false);
+
+  /**
+   * ===================================================
+   * ROUTE PARAMETERS
+   * ===================================================
+   */
 
   const {
     game,
@@ -31,37 +495,87 @@ const GamePlayScreen = () => {
     usedPlayerIndexes: routeUsedPlayerIndexes,
     currentPlayer: routeCurrentPlayer,
     turnCount: routeTurnCount,
-  } = route.params;
+  } = route.params || {};
+
+  /**
+   * ===================================================
+   * GAME TYPE
+   * ===================================================
+   */
+
+  const gameName = normalizeGameName(
+    game?.title || ""
+  );
+
+  const gameLogo = GAME_LOGOS[gameName];
+
+  const isNeverHaveIEver =
+    gameName === "jeg har aldrig";
+
+  const isMostLikely =
+    game?.id === "most_likely_to";
+
+  const isKnowMe =
+    gameName === "kender du mig";
+
+  /**
+   * ===================================================
+   * EXIT BY DOUBLE TAP
+   * ===================================================
+   */
 
   const handleTitlePress = () => {
     const now = Date.now();
 
-    if (now - lastTitlePressRef.current < 350) {
-      socket.emit("leaveGame", { gameId });
+    if (
+      now - lastTitlePressRef.current <
+      350
+    ) {
+      socket.emit("leaveGame", {
+        gameId,
+      });
 
       navigation.reset({
         index: 0,
-        routes: [{ name: "Home" }],
+        routes: [
+          { name: "Home" },
+        ],
       });
     }
 
     lastTitlePressRef.current = now;
   };
 
+  /**
+   * ===================================================
+   * NEXT GAME
+   * ===================================================
+   */
+
   const getNextGame = () => {
-    const otherGames = games.filter((item) => item.id !== game.id);
+    if (!game) return null;
+
+    const otherGames = games.filter(
+      (item) => item.id !== game.id
+    );
 
     if (otherGames.length === 0) {
       return game;
     }
 
-    const randomIndex = Math.floor(Math.random() * otherGames.length);
-    return otherGames[randomIndex];
+    return otherGames[
+      Math.floor(
+        Math.random() *
+        otherGames.length
+      )
+    ];
   };
 
-  const [line1, line2] = game.headerTitle
-    ? game.headerTitle.split("\n")
-    : game.title.split(" ");
+  /**
+   * ===================================================
+   * ROUND LIMIT
+   * ===================================================
+   */
 
   const getRoundLimit = (playerCount) => {
     if (playerCount === 2) return 4;
@@ -77,37 +591,135 @@ const GamePlayScreen = () => {
     if (playerCount === 12) return 8;
     if (playerCount === 13) return 9;
     if (playerCount === 14) return 9;
+
     return 10;
   };
 
-  const roundLimit =
-    game.cardsPerRound === "players"
+  const roundLimit = game
+    ? game.cardsPerRound === "players"
       ? getRoundLimit(players.length)
       : game.cardsPerRound === "halfPlayers"
       ? players.length < 3
         ? players.length
         : Math.ceil(players.length / 2)
-      : game.cardsPerRound;
+      : game.cardsPerRound
+    : null;
 
-  const [usedIndexes, setUsedIndexes] = useState(routeUsedIndexes || []);
-  const [usedPlayerIndexes, setUsedPlayerIndexes] = useState(
+  /**
+   * ===================================================
+   * GAME STATE
+   * ===================================================
+   */
+
+  const [
+    usedIndexes,
+    setUsedIndexes,
+  ] = useState(
+    routeUsedIndexes || []
+  );
+
+  const [
+    usedPlayerIndexes,
+    setUsedPlayerIndexes,
+  ] = useState(
     routeUsedPlayerIndexes || []
   );
-  const [turnCount, setTurnCount] = useState(routeTurnCount || 0);
-  const [card, setCard] = useState(routeCard || null);
-  const [currentPlayer, setCurrentPlayer] = useState(
+
+  const [
+    turnCount,
+    setTurnCount,
+  ] = useState(
+    routeTurnCount || 0
+  );
+
+  const [
+    card,
+    setCard,
+  ] = useState(
+    routeCard || null
+  );
+
+  const [
+    currentPlayer,
+    setCurrentPlayer,
+  ] = useState(
     routeCurrentPlayer || null
   );
-  // Afstemning
-  const [voting, setVoting] = useState(route.params.voting || null);
-  const [selectedVote, setSelectedVote] = useState(null);
-  const [voteProgress, setVoteProgress] = useState(null);
-  const [voteResults, setVoteResults] = useState(null);
 
-  const [selectedHotSeatCategory, setSelectedHotSeatCategory] = useState(null);
+  /**
+   * ===================================================
+   * VOTING STATE
+   * ===================================================
+   */
+
+  const [
+    voting,
+    setVoting,
+  ] = useState(
+    route.params?.voting || null
+  );
+
+  const [
+    selectedVote,
+    setSelectedVote,
+  ] = useState(null);
+
+  const [
+    voteProgress,
+    setVoteProgress,
+  ] = useState(null);
+
+  const [
+    voteResults,
+    setVoteResults,
+  ] = useState(null);
+
+  /**
+   * ===================================================
+   * KENDER DU MIG – STATE
+   * ===================================================
+   *
+   * Et valgt svar er ikke det samme
+   * som en afgivet stemme.
+   */
+
+  const [
+    knowMeSubmitted,
+    setKnowMeSubmitted,
+  ] = useState(false);
+
+  const knowMeOptions =
+    Array.isArray(voting?.options)
+      ? voting.options
+      : [];
+
+  const knowMeHasVoted =
+    knowMeSubmitted;
+
+  const knowMeHasResults =
+    voteResults !== null;
+
+  /**
+   * ===================================================
+   * HOT SEAT STATE
+   * ===================================================
+   */
+
+  const [
+    selectedHotSeatCategory,
+    setSelectedHotSeatCategory,
+  ] = useState(null);
+
+  /**
+   * ===================================================
+   * ROUND STATUS
+   * ===================================================
+   */
 
   const reachedLimit =
-    roundLimit !== null && roundLimit !== undefined && turnCount >= roundLimit;
+    roundLimit !== null &&
+    roundLimit !== undefined &&
+    turnCount >= roundLimit;
 
   const cardText = card
     ? typeof card === "string"
@@ -115,78 +727,254 @@ const GamePlayScreen = () => {
       : card.text || null
     : "Der er ikke flere kort i dette spil.";
 
+  /**
+   * ===================================================
+   * ACTIVE ROUND REFERENCE
+   * ===================================================
+   */
+
+  const activeRoundIdRef = useRef(
+    voting?.roundId ?? null
+  );
+
+  activeRoundIdRef.current =
+    voting?.roundId ?? null;
+
+  /**
+   * ===================================================
+   * SOCKET EVENTS
+   * ===================================================
+   */
+
   useEffect(() => {
-    socket.on("showGamePlay", (payload) => {
+    /**
+     * SHOW GAME PLAY
+     */
+
+    const handleShowGamePlay = (payload) => {
+      if (
+        payload.gameId &&
+        payload.gameId !== gameId
+      ) {
+        return;
+      }
+
+      advancingRef.current = false;
+
+      activeRoundIdRef.current =
+        payload.voting?.roundId ?? null;
+
       setCard(payload.card);
-      setUsedIndexes(payload.usedIndexes || []);
-      setUsedPlayerIndexes(payload.usedPlayerIndexes || []);
-      setCurrentPlayer(payload.currentPlayer || null);
-      setTurnCount(payload.turnCount || 0);
+
+      setUsedIndexes(
+        payload.usedIndexes || []
+      );
+
+      setUsedPlayerIndexes(
+        payload.usedPlayerIndexes || []
+      );
+
+      setCurrentPlayer(
+        payload.currentPlayer || null
+      );
+
+      setTurnCount(
+        payload.turnCount || 0
+      );
+
       setSelectedHotSeatCategory(null);
 
-      // Ny afstemning starter
-      setVoting(payload.voting || null);
+      setVoting(
+        payload.voting || null
+      );
+
       setSelectedVote(null);
+
+      // Kender du mig:
+      // Ny runde = ny afstemning
+      setKnowMeSubmitted(false);
+
       setVoteProgress(null);
       setVoteResults(null);
-    });
+    };
 
+    /**
+     * VOTE PROGRESS
+     */
 
-    // Opdater antallet af afgivne stemmer
-    socket.on("voteProgress", (payload) => {
-      setVoting((currentVoting) => {
-        if (!currentVoting || currentVoting.roundId !== payload.roundId) {
-          return currentVoting;
+    const handleVoteProgress = (payload) => {
+      if (
+        payload.gameId &&
+        payload.gameId !== gameId
+      ) {
+        return;
+      }
+
+      if (
+        payload.roundId !==
+        activeRoundIdRef.current
+      ) {
+        return;
+      }
+
+      setVoteProgress({
+        votedCount: payload.votedCount,
+        totalCount: payload.totalCount,
+      });
+    };
+
+    /**
+     * VOTE RESULTS
+     */
+
+    const handleVoteResults = (payload) => {
+      if (
+        payload.gameId &&
+        payload.gameId !== gameId
+      ) {
+        return;
+      }
+
+      if (
+        payload.roundId !==
+        activeRoundIdRef.current
+      ) {
+        return;
+      }
+
+      setVoteResults(payload);
+    };
+
+    /**
+     * NEXT GAME INTRO
+     */
+
+    const handleShowGameIntro = ({
+      gameId: incomingGameId,
+      game: nextGame,
+      players: nextPlayers,
+      reader,
+    }) => {
+      if (
+        incomingGameId &&
+        incomingGameId !== gameId
+      ) {
+        return;
+      }
+
+      advancingRef.current = false;
+
+      navigation.navigate(
+        "GameIntro",
+        {
+          game: nextGame,
+          gameId,
+          isHost,
+          players: nextPlayers || players,
+          reader,
         }
+      );
+    };
 
-        setVoteProgress({
-          votedCount: payload.votedCount,
-          totalCount: payload.totalCount,
-        });
+    /**
+     * GAME ENDED
+     */
 
-        return currentVoting;
+    const handleGameEnded = ({
+      gameId: endedGameId,
+    }) => {
+      if (endedGameId !== gameId) {
+        return;
+      }
+
+      navigation.reset({
+        index: 0,
+        routes: [
+          { name: "Home" },
+        ],
       });
-    });
+    };
 
-    // Modtag resultatet, når værten afslører stemmerne
-    socket.on("voteResults", (payload) => {
-      setVoting((currentVoting) => {
-        if (!currentVoting || currentVoting.roundId !== payload.roundId) {
-          return currentVoting;
-        }
+    socket.on(
+      "showGamePlay",
+      handleShowGamePlay
+    );
 
-        setVoteResults(payload);
-        return currentVoting;
-      });
-    });
+    socket.on(
+      "voteProgress",
+      handleVoteProgress
+    );
 
-    socket.on("showGameIntro", ({ gameId, game, players, reader }) => {
-      navigation.navigate("GameIntro", {
-        game,
-        gameId,
-        isHost,
-        players,
-        reader,
-      });
-    });
+    socket.on(
+      "voteResults",
+      handleVoteResults
+    );
+
+    socket.on(
+      "showGameIntro",
+      handleShowGameIntro
+    );
+
+    socket.on(
+      "gameEnded",
+      handleGameEnded
+    );
 
     return () => {
-      socket.off("showGamePlay");
-      socket.off("showGameIntro");
-      socket.off("voteProgress");
-      socket.off("voteResults");
+      socket.off(
+        "showGamePlay",
+        handleShowGamePlay
+      );
+
+      socket.off(
+        "voteProgress",
+        handleVoteProgress
+      );
+
+      socket.off(
+        "voteResults",
+        handleVoteResults
+      );
+
+      socket.off(
+        "showGameIntro",
+        handleShowGameIntro
+      );
+
+      socket.off(
+        "gameEnded",
+        handleGameEnded
+      );
     };
-  }, []);
+  }, [
+    navigation,
+    isHost,
+    gameId,
+    players,
+  ]);
 
-
-  // ========================================
-  // AFGIV STEMME
-  // ========================================
+  /**
+   * ===================================================
+   * SUBMIT VOTE
+   * ===================================================
+   *
+   * Bruges af de øvrige spil.
+   */
 
   const handleVote = (optionId) => {
-    if (!voting) return;
-    if (selectedVote !== null) return;
-    if (voteResults) return;
+    if (!voting) {
+      console.log(
+        "Ingen aktiv afstemningsrunde"
+      );
+      return;
+    }
+
+    if (
+      selectedVote !== null ||
+      voteResults !== null
+    ) {
+      return;
+    }
 
     setSelectedVote(optionId);
 
@@ -197,580 +985,1057 @@ const GamePlayScreen = () => {
     });
   };
 
-  // ========================================
-  // AFSLØR STEMMER
-  // ========================================
+  /**
+   * ===================================================
+   * KENDER DU MIG – SUBMIT VOTE
+   * ===================================================
+   *
+   * Sender først stemmen, når spilleren
+   * trykker på AFGIV STEMME.
+   */
 
-  const handleRevealVotes = () => {
-    if (!isHost) return;
-    if (!voting) return;
-    if (voteResults) return;
+  const handleKnowMeSubmitVote = () => {
+    if (
+      selectedVote === null ||
+      knowMeSubmitted ||
+      !voting?.roundId ||
+      voteResults !== null
+    ) {
+      return;
+    }
 
-    socket.emit("revealVotes", {
+    setKnowMeSubmitted(true);
+
+    socket.emit("submitVote", {
       gameId,
       roundId: voting.roundId,
+      optionId: selectedVote,
     });
   };
 
+  /**
+   * ===================================================
+   * REVEAL VOTES
+   * ===================================================
+   */
+
+  const handleRevealVotes = () => {
+    if (
+      !isHost ||
+      !voting ||
+      voteResults
+    ) {
+      return;
+    }
+
+    socket.emit(
+      "revealVotes",
+      {
+        gameId,
+        roundId: voting.roundId,
+      }
+    );
+  };
+
+  /**
+   * ===================================================
+   * NEXT CARD
+   * ===================================================
+   */
 
   const handleNext = () => {
-    // Vent med næste spørgsmål, indtil stemmerne er afsløret
-    if (voting && !voteResults) return;
+    if (!isHost) return;
+
+    if (voting && !voteResults) {
+      return;
+    }
 
     if (reachedLimit) return;
 
-    socket.emit("showGamePlay", {
-      gameId,
-      game,
-      usedIndexes,
-      usedPlayerIndexes,
-      turnCount,
-    });
+    if (advancingRef.current) return;
+
+    advancingRef.current = true;
+
+    socket.emit(
+      "showGamePlay",
+      {
+        gameId,
+        game,
+        usedIndexes,
+        usedPlayerIndexes,
+        turnCount,
+      }
+    );
   };
 
-  const handleEndRound = () => {
-    // Afslut ikke spillet, før stemmerne er afsløret
-    if (voting && !voteResults) return;
+  /**
+   * ===================================================
+   * NEXT GAME
+   * ===================================================
+   */
 
-    socket.emit("showGameIntro", {
-      gameId,
-      game: getNextGame(),
-    });
+  const handleNextGame = () => {
+    if (!isHost) return;
+
+    if (voting && !voteResults) {
+      return;
+    }
+
+    if (advancingRef.current) return;
+
+    advancingRef.current = true;
+
+    socket.emit(
+      "showGameIntro",
+      {
+        gameId,
+        game: getNextGame(),
+      }
+    );
   };
 
-  return (
-    <ScrollView
-      contentContainerStyle={[
-        styles.container,
-        isSmallScreen && styles.containerSmall,
-      ]}
-      showsVerticalScrollIndicator={false}
-    >
-      <View style={styles.header}>
-        <Image
-          source={require("../../assets/logo-.png")}
-          style={styles.icon}
+  /**
+   * ===================================================
+   * END ENTIRE GAME
+   * ===================================================
+   */
+
+  const handleEndGame = () => {
+    if (!isHost) return;
+
+    socket.emit(
+      "endGame",
+      {
+        gameId,
+      }
+    );
+  };
+
+  /**
+   * ===================================================
+   * DEL 2 FORTSÆTTER HER
+   * ===================================================
+   *
+   * Indsæt del 2 direkte herunder.
+   *
+   * Den indeholder:
+   *
+   * - Kender du mig? – afstemningsskærm
+   * - Valgt svar med lyseblå markering
+   * - AFGIV STEMME-knap
+   * - Venteskærm
+   * - Rigtigt/forkert-resultat
+   * - De øvrige spilvisninger
+   * - Host-knapper
+   * - StyleSheet
+   * - export default GamePlayScreen
+   */
+
+  /**
+   * ===================================================
+   * KENDER DU MIG – DATA
+   * ===================================================
+   */
+
+
+  const knowMePlayer =
+    players.find(
+      (player) =>
+        String(player.id) ===
+        String(
+          voting?.selectedPlayerId ||
+          currentPlayer?.id
+        )
+    ) ||
+    currentPlayer ||
+    null;
+
+
+  const knowMeStatements = knowMeOptions
+    .slice(0, 2)
+    .map((option, index) => ({
+      id:
+        typeof option === "object"
+          ? option?.id ?? option?.optionId ?? index
+          : index,
+
+      text:
+        typeof option === "string"
+          ? option
+          : option?.text ||
+            option?.label ||
+            option?.statement ||
+            "",
+    }));
+
+  const knowMeVotedCount =
+    voteProgress?.votedCount ??
+    voting?.votedCount ??
+    (knowMeSubmitted ? 1 : 0);
+
+  const knowMeTotalCount =
+    voteProgress?.totalCount ??
+    voting?.totalCount ??
+    players.length;
+
+  const knowMeCorrect =
+    voteResults?.isCorrect ??
+    voteResults?.correct ??
+    voteResults?.playerResult?.isCorrect ??
+    null;
+
+  /**
+   * ===================================================
+   * KENDER DU MIG – RESULTAT
+   * ===================================================
+   */
+
+
+  const renderKnowMeResult = () => {
+    const isCorrect = knowMeCorrect === true;
+    const isIncorrect = knowMeCorrect === false;
+    const isSelectedPlayer =
+      voteResults?.isSelectedPlayer === true;
+
+    const isPink = isIncorrect;
+    const shapeColor = isPink ? "#F8DAD7" : "#DBEAF6";
+
+    return (
+      <View style={styles.knowMeResultScreen}>
+        <View style={styles.knowMeResultArtwork}>
+      <Svg
+        width="100%"
+        height="100%"
+        viewBox="0 0 400 420"
+        preserveAspectRatio="none"
+        style={StyleSheet.absoluteFill}
+      >
+        <Path
+          d="
+            M 57 27
+
+            C 76 28, 78 27, 89 22
+            C 103 22, 108 4, 139 5
+            C 176 0, 185 14, 214 13
+            C 244 12, 273 7, 284 25
+
+            C 294 41, 289 53, 305 73
+            C 316 89, 308 106, 321 126
+            C 337 151, 367 162, 380 187
+
+            C 392 210, 367 226, 372 247
+            C 377 268, 395 280, 383 296
+            C 369 313, 353 297, 346 320
+
+            C 340 341, 332 372, 315 386
+            C 304 395, 291 383, 277 389
+            C 253 400, 228 410, 204 404
+            C 184 400, 177 381, 157 380
+
+            C 133 376, 117 389, 91 386
+            C 65 387, 40 389, 34 369
+
+            C 28 349, 40 332, 49 320
+            C 60 305, 39 291, 31 275
+            C 18 253, 28 237, 42 225
+
+            C 55 214, 58 201, 50 183
+            C 44 168, 27 156, 29 137
+            C 31 121, 19 109, 21 92
+
+            C 24 77, 16 65, 20 48
+            C 23 30, 35 25, 57 27
+
+            Z
+          "
+          fill={shapeColor}
         />
+      </Svg>
 
-        <TouchableOpacity
-          style={styles.titleWrapper}
-          activeOpacity={1}
-          onPress={handleTitlePress}
-        >
-          <Text style={styles.headerSmall}>{line1}</Text>
-          <Text
-            style={[
-              styles.headerBig,
-              line2?.length > 10 && styles.headerBigSmall,
-            ]}
-          >
-            {line2 || ""}
-          </Text>
-        </TouchableOpacity>
-
-        <Image
-          source={require("../../assets/logo-.png")}
-          style={styles.icon}
-        />
-      </View>
-
-      {game.mode === "player_turns" && currentPlayer && (
-        <View style={styles.currentPlayerBox}>
           <Image
             source={
-              currentPlayer.profileImage
-                ? { uri: currentPlayer.profileImage }
-                : require("../../assets/kamera.png")
+              isPink
+                ? require("../../assets/forkert-svar.png")
+                : require("../../assets/glas.png")
             }
-            style={styles.currentPlayerImage}
+            style={styles.knowMeResultImage}
+            resizeMode="contain"
           />
 
-          <Text style={styles.currentPlayerName}>{currentPlayer.name}</Text>
-          {game.screenType === "hot_seat" &&
-            currentPlayer?.id !== socket.id && (
-              <Text style={styles.hotSeatSuggestionTitle}>
-                FORSLAG TIL SPØRGSMÅL
-              </Text>
+          <Text style={styles.knowMeResultTitle}>
+            {isCorrect
+              ? "Du gættede rigtigt!"
+              : isIncorrect
+              ? "Forkert gæt!"
+              : isSelectedPlayer
+              ? "Alle har stemt!"
+              : "Afstemningen er afsluttet"}
+          </Text>
+
+          {isIncorrect && (
+            <Text style={styles.knowMeResultSubtitle}>
+              Du skal drikke!
+            </Text>
+          )}
+
+          {isSelectedPlayer && (
+            <Text style={styles.knowMeResultDescription}>
+              De andre har gættet på dit svar.
+            </Text>
           )}
         </View>
-      )}
 
-      <View style={styles.cardBox}>
-        {game.screenType === "hot_seat" ? (
-          currentPlayer?.id === socket.id ? (
-            <Text style={styles.cardText}>
-              Du er blevet valgt,{"\n"}
-              sæt dig godt til rette
+        {isHost ? (
+          <TouchableOpacity
+            style={styles.knowMeResultNextButton}
+            onPress={
+              reachedLimit
+                ? handleNextGame
+                : handleNext
+            }
+            activeOpacity={0.85}
+          >
+            <Text style={styles.knowMeResultNextText}>
+              {reachedLimit ? "Næste spil" : "Næste runde"}
             </Text>
-          ) : selectedHotSeatCategory ? (
-            <ScrollView showsVerticalScrollIndicator={false}>
-
-              <Text style={styles.hotSeatTitle}>
-                {selectedHotSeatCategory === "green"
-                  ? "Easy Going Edition"
-                  : selectedHotSeatCategory === "orange"
-                  ? "Buzz Edition"
-                  : "Hård Spiritus Edition"}
-              </Text>
-
-              {game.cards[selectedHotSeatCategory]?.map((question, index) => (
-                <Text key={index} style={styles.hotSeatQuestion}>
-                  {index + 1}. {question}
-                </Text>
-              ))}
-            </ScrollView>
-          ) : (
-          <View style={styles.categoryWrapper}>
-
-            <TouchableOpacity
-              onPress={() => setSelectedHotSeatCategory("green")}
-            >
-              <Image
-                source={require("../../assets/hot-seat-green.png")}
-                style={styles.categoryOnlyImage}
-              />
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              onPress={() => setSelectedHotSeatCategory("orange")}
-            >
-              <Image
-                source={require("../../assets/hot-seat-orange.png")}
-                style={styles.categoryOnlyImage}
-              />
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              onPress={() => setSelectedHotSeatCategory("red")}
-            >
-              <Image
-                source={require("../../assets/hot-seat-red.png")}
-                style={styles.categoryOnlyImage}
-              />
-            </TouchableOpacity>
-
-          </View>
-          )
-        ) : game.screenType === "three_random_statements" &&
-          Array.isArray(card) ? (
-          <>
-            {card.map((statement, index) => (
-              <React.Fragment key={index}>
-                <Text style={styles.statementText}>{statement}</Text>
-
-                {index < card.length - 1 && (
-                  <View style={styles.statementDivider} />
-                )}
-              </React.Fragment>
-            ))}
-          </>
-        ) : card?.optionA && card?.optionB ? (
-          <>
-            <Text style={styles.optionText}>{card.optionA}</Text>
-            <Text style={styles.orText}>eller</Text>
-            <Text style={styles.optionText}>{card.optionB}</Text>
-          </>
+          </TouchableOpacity>
         ) : (
-          <Text style={styles.cardText}>{cardText}</Text>
+          <Text style={styles.knowMeHostWaiting}>
+            Venter på, at hosten går videre...
+          </Text>
         )}
       </View>
+    );
+  };
 
-      {/* ========================================
-            AFSTEMNING
-        ======================================== */}
 
-        {voting && Array.isArray(voting.options) && !voteResults && (
-          <View style={{ width: "100%", alignItems: "center", marginBottom: 20 }}>
+  /**
+   * ===================================================
+   * KENDER DU MIG – VENTESKÆRM
+   * ===================================================
+   */
 
-            <Text style={styles.waitingText}>
-              {selectedVote !== null
-                ? "Din stemme er registreret!"
-                : "AFGIV DIN STEMME"}
-            </Text>
+  const renderKnowMeWaiting = () => {
+    const total = Math.max(
+      0,
+      Number(knowMeTotalCount) || 0
+    );
 
-            {voting.options.map((option) => (
-              <TouchableOpacity
-                key={String(option.id)}
-                style={[
-                  styles.nextButton,
-                  {
-                    width: "100%",
-                    backgroundColor:
-                      selectedVote === option.id ? "#2f56a6" : "#137DC5",
-                    opacity:
-                      selectedVote !== null && selectedVote !== option.id ? 0.5 : 1,
-                    marginBottom: 12,
-                  },
-                ]}
-                disabled={selectedVote !== null}
-                onPress={() => handleVote(option.id)}
-              >
-                <Text style={styles.buttonText}>
-                  {option.label}
-                </Text>
-              </TouchableOpacity>
-            ))}
+    const voted = Math.min(
+      total,
+      Math.max(
+        0,
+        Number(knowMeVotedCount) || 0
+      )
+    );
 
-            <Text style={styles.waitingText}>
-              {voteProgress?.votedCount ?? voting.votedCount ?? 0}
-              {" / "}
-              {voteProgress?.totalCount ?? voting.totalCount ?? players.length}
-              {" har stemt"}
-            </Text>
-
-          </View>
-        )}
-
-        {/* ========================================
-            RESULTAT AF AFSTEMNING
-        ======================================== */}
-
-        {voting && voteResults && (
-          <View
-            style={{
-              width: "100%",
-              alignItems: "center",
-              marginBottom: 25,
-            }}
-          >
-            <Text
-              style={{
-                fontSize: 24,
-                fontWeight: "bold",
-                color: "#2f56a6",
-                marginBottom: 20,
-              }}
+    return (
+      <View style={styles.knowMeWaitingScreen}>
+        <View style={styles.knowMeWaitingIcons}>
+          {Array.from({
+            length: total,
+          }).map((_, index) => (
+            <View
+              key={index}
+              style={[
+                styles.knowMeWaitingPerson,
+                index < voted
+                  ? styles.knowMePersonActive
+                  : styles.knowMePersonInactive,
+              ]}
             >
-              RESULTAT
-            </Text>
+              <View
+                style={styles.knowMePersonHead}
+              />
 
-            {voting.options.map((option) => {
-              const count =
-              voteResults.results?.find(
-                (result) => result.id === option.id
-              )?.votes ?? 0;
+              <View
+                style={styles.knowMePersonBody}
+              />
+            </View>
+          ))}
+        </View>
+
+        <Text style={styles.knowMeWaitingCount}>
+          {voted} ud af {total} har stemt
+        </Text>
+
+        <Text style={styles.knowMeWaitingSubtitle}>
+          Venter på de andre spillere...
+        </Text>
+      </View>
+    );
+  };
+
+  /**
+   * ===================================================
+   * KENDER DU MIG – AFSTEMNING
+   * ===================================================
+   */
+
+  const renderKnowMeVoting = () => {
+    const hasOptions =
+      knowMeStatements.length === 2;
+
+    return (
+      <ScrollView
+        style={styles.knowMeScroll}
+        contentContainerStyle={
+          styles.knowMeVotingContent
+        }
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.knowMePlayer}>
+          <PlayerAvatar
+            player={knowMePlayer}
+            size={90}
+          />
+
+          <Text style={styles.knowMePlayerName}>
+            {knowMePlayer?.name || "Spiller"}
+          </Text>
+        </View>
+
+        <Text style={styles.knowMeQuestion}>
+          Hvad tror du,{" "}
+          {knowMePlayer?.name || "spilleren"}{" "}
+          stemmer?
+        </Text>
+
+        {!hasOptions ? (
+          <View style={styles.knowMeOption}>
+            <Text style={styles.knowMeOptionText}>
+              Venter på svarmuligheder...
+            </Text>
+          </View>
+        ) : (
+          knowMeStatements.map(
+            (option, index) => {
+              const isSelected =
+                selectedVote !== null &&
+                String(selectedVote) ===
+                  String(option.id);
 
               return (
-                <View
+                <React.Fragment
                   key={String(option.id)}
-                  style={{
-                    width: "100%",
-                    backgroundColor: "#e8e5fc",
-                    padding: 16,
-                    borderRadius: 18,
-                    marginBottom: 12,
-                  }}
                 >
-                  <Text
-                    style={{
-                      fontSize: 18,
-                      fontWeight: "bold",
-                      color: "#2f56a6",
-                      textAlign: "center",
-                    }}
-                  >
-                    {option.label}
-                  </Text>
+                  {index === 1 && (
+                    <Text style={styles.knowMeOr}>
+                      eller
+                    </Text>
+                  )}
 
-                  <Text
-                    style={{
-                      fontSize: 20,
-                      fontWeight: "bold",
-                      color: "#137DC5",
-                      textAlign: "center",
-                      marginTop: 8,
+                  <TouchableOpacity
+                    style={[
+                      styles.knowMeOption,
+                      isSelected &&
+                        styles.knowMeOptionSelected,
+                    ]}
+                    activeOpacity={0.85}
+                    disabled={knowMeSubmitted}
+                    onPress={() => {
+                      setSelectedVote(option.id);
                     }}
                   >
-                    {count} {count === 1 ? "stemme" : "stemmer"}
-                  </Text>
-                </View>
+                    <Text
+                      style={[
+                        styles.knowMeOptionText,
+                        isSelected &&
+                          styles.knowMeOptionTextSelected,
+                      ]}
+                    >
+                      {option.text}
+                    </Text>
+                  </TouchableOpacity>
+                </React.Fragment>
               );
-            })}
-          </View>
+            }
+          )
         )}
 
-
-
-
-
-    {selectedHotSeatCategory ? (
-      <TouchableOpacity
-        style={styles.nextButton}
-        onPress={() => setSelectedHotSeatCategory(null)}
-      >
-        <Text style={styles.buttonText}>Tilbage</Text>
-      </TouchableOpacity>
-    ) : isHost ? (
-      <>
         <TouchableOpacity
-          style={styles.nextButton}
-          onPress={reachedLimit ? handleEndRound : handleNext}
+          style={[
+            styles.knowMePrimaryButton,
+            (!hasOptions ||
+              selectedVote === null ||
+              knowMeSubmitted ||
+              !voting?.roundId) &&
+              styles.knowMeButtonDisabled,
+          ]}
+          disabled={
+            !hasOptions ||
+            selectedVote === null ||
+            knowMeSubmitted ||
+            !voting?.roundId
+          }
+          onPress={handleKnowMeSubmitVote}
+          activeOpacity={0.85}
         >
-          <Text style={styles.buttonText}>
-            {reachedLimit ? "NÆSTE SPIL" : "Næste"}
+          <Text
+            style={styles.knowMePrimaryButtonText}
+          >
+            AFGIV STEMME
           </Text>
         </TouchableOpacity>
+      </ScrollView>
+    );
+  };
 
-        {/* Værten kan afsløre stemmerne */}
-        {voting && !voteResults && (
-          <TouchableOpacity
-            style={[
-              styles.nextButton,
-              {
-                backgroundColor: "#2f56a6",
-                width: 280,
-                marginBottom: 15,
-              },
-            ]}
-            onPress={handleRevealVotes}
-          >
-            <Text style={styles.buttonText}>
-              AFSLØR STEMMER
+  /**
+   * ===================================================
+   * KENDER DU MIG – SCREEN CONTROLLER
+   * ===================================================
+   */
+
+  const renderKnowMe = () => {
+    if (knowMeHasResults) {
+      return renderKnowMeResult();
+    }
+
+    if (knowMeHasVoted) {
+      return renderKnowMeWaiting();
+    }
+
+    return renderKnowMeVoting();
+  };
+
+  /**
+   * ===================================================
+   * MAIN RENDER
+   * ===================================================
+   */
+
+  return (
+    <View style={styles.container}>
+      <Blob
+        width={220}
+        height={260}
+        rotation={15}
+        style={styles.backgroundBlobRight}
+      />
+
+      <Blob
+        width={220}
+        height={250}
+        rotation={-25}
+        style={styles.backgroundBlobBottom}
+      />
+
+
+      <TouchableOpacity
+        onPress={handleTitlePress}
+        activeOpacity={1}
+        style={[
+          styles.logoContainer,
+          isKnowMe && styles.knowMeLogoContainer,
+        ]}
+      >
+
+        {gameLogo ? (
+          <Image
+            source={gameLogo}
+            style={styles.gameLogo}
+            resizeMode="contain"
+          />
+        ) : (
+          <Text style={styles.gameTitle}>
+            {game?.title || "Drukkensdyst"}
+          </Text>
+        )}
+      </TouchableOpacity>
+
+      {isMostLikely ? (
+        <View style={styles.gameArea}>
+          <MostLikelyVoting
+            card={card}
+            players={players}
+            voting={voting}
+            selectedVote={selectedVote}
+            voteProgress={voteProgress}
+            voteResults={voteResults}
+            onVote={handleVote}
+          />
+
+          {isHost && voteResults && (
+            <TouchableOpacity
+              style={styles.nextButton}
+              onPress={
+                reachedLimit
+                  ? handleNextGame
+                  : handleNext
+              }
+            >
+              <Text style={styles.nextButtonText}>
+                {reachedLimit
+                  ? "Næste spil"
+                  : "Næste runde"}
+              </Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      ) : isKnowMe ? (
+        renderKnowMe()
+      ) : isNeverHaveIEver ? (
+        <View style={styles.genericContent}>
+          <NeverHaveIEverCard
+            text={cardText}
+            width={width}
+          />
+        </View>
+      ) : (
+        <ScrollView
+          style={styles.genericScroll}
+          contentContainerStyle={
+            styles.genericContent
+          }
+          showsVerticalScrollIndicator={false}
+        >
+          <Text style={styles.genericCardText}>
+            {cardText}
+          </Text>
+        </ScrollView>
+      )}
+
+      {!isKnowMe &&
+        !isMostLikely &&
+        isHost && (
+          <View style={styles.bottomControls}>
+            <TouchableOpacity
+              style={styles.nextButton}
+              onPress={
+                reachedLimit
+                  ? handleNextGame
+                  : handleNext
+              }
+            >
+              <Text style={styles.nextButtonText}>
+                {reachedLimit
+                  ? "Næste spil"
+                  : "Næste spørgsmål"}
+              </Text>
+            </TouchableOpacity>
+
+            <Text style={styles.roundCounter}>
+              {turnCount} / {roundLimit || 0}
             </Text>
-          </TouchableOpacity>
+          </View>
         )}
-
-        {!game.cardsPerRound && (
-          <TouchableOpacity style={styles.endButton} onPress={handleEndRound}>
-            <Text style={styles.buttonText}>NÆSTE SPIL</Text>
-          </TouchableOpacity>
-        )}
-      </>
-    ) : (
-      <Text style={styles.waitingText}></Text>
-    )}
-    </ScrollView>
+    </View>
   );
 };
 
-export default GamePlayScreen;
+/**
+ * =====================================================
+ * STYLES
+ * =====================================================
+ */
 
 const styles = StyleSheet.create({
   container: {
-    flexGrow: 1,
-    backgroundColor: "#e1e0e4",
-    alignItems: "center",
-    paddingHorizontal: 30,
-    paddingTop: 70,
-    paddingBottom: 35,
-  },
-
-  containerSmall: {
-    paddingTop: 45,
-  },
-
-  header: {
-    width: "100%",
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 45,
-  },
-
-  titleWrapper: {
     flex: 1,
-    alignItems: "center",
+    backgroundColor: COLORS.background,
+    overflow: "hidden",
   },
 
-  icon: {
-    width: 55,
-    height: 55,
-    resizeMode: "contain",
+  gameArea: {
+    flex: 1,
   },
 
-  headerSmall: {
-    fontSize: 28,
-    color: "#2f56a6",
-    fontWeight: "bold",
-    textAlign: "center",
+  backgroundBlobRight: {
+    position: "absolute",
+    top: 160,
+    right: -120,
+    opacity: 0.95,
   },
 
-  headerBig: {
-    fontSize: 38,
-    color: "#2f56a6",
-    fontWeight: "900",
-    letterSpacing: 2,
-    textAlign: "center",
+  backgroundBlobBottom: {
+    position: "absolute",
+    bottom: -120,
+    left: -100,
+    opacity: 0.95,
   },
 
-  headerBigSmall: {
-    fontSize: 28,
-    letterSpacing: 1,
-  },
-
-  currentPlayerBox: {
-    alignItems: "center",
-    marginTop: -33,
-    marginBottom: 18,
-  },
-
-  currentPlayerImage: {
-    width: 95,
-    height: 95,
-    borderRadius: 47.5,
-    backgroundColor: "#e8e5fc",
-    marginBottom: 8,
-  },
-
-  currentPlayerName: {
-    fontSize: 20,
-    color: "#137DC5",
-    fontWeight: "bold",
-    fontStyle: "italic",
-  },
-
-  cardBox: {
-    width: "100%",
-    minHeight: 320,
-    maxHeight: 430,
-    backgroundColor: "#e8e5fc",
-    borderRadius: 28,
-    padding: 24,
-    alignItems: "stretch",
+  logoContainer: {
+    height: 175,
+    paddingTop: 25,
+    paddingHorizontal: 25,
     justifyContent: "center",
+    alignItems: "center",
+    zIndex: 2,
+  },
+
+
+  knowMeLogoContainer: {
+    transform: [{ translateY: 25 }],
+    marginBottom: -10,
+  },
+
+
+  gameLogo: {
+    width: "100%",
+    height: 115,
+  },
+
+  gameTitle: {
+    fontSize: 29,
+    fontWeight: "900",
+    color: COLORS.navy,
+    textAlign: "center",
+  },
+
+  /**
+   * ===================================================
+   * KENDER DU MIG – VOTING
+   * ===================================================
+   */
+
+  knowMeScroll: {
+    flex: 1,
+  },
+
+  knowMeVotingContent: {
+    flexGrow: 1,
+    paddingHorizontal: 28,
+    paddingTop: 10,
+    paddingBottom: 45,
+    alignItems: "center",
+  },
+
+  knowMePlayer: {
+    alignItems: "center",
+    marginBottom: 25,
+  },
+
+  knowMePlayerName: {
+    color: COLORS.navy,
+    fontSize: 21,
+    fontWeight: "800",
+    marginTop: 10,
+    textAlign: "center",
+  },
+
+  knowMeQuestion: {
+    color: COLORS.navy,
+    fontSize: 17,
+    fontWeight: "700",
+    textAlign: "center",
     marginBottom: 20,
   },
 
-  cardText: {
-    fontSize: 25,
-    color: "#9c9c9c",
-    fontWeight: "bold",
-    fontStyle: "italic",
-    textAlign: "center",
-    lineHeight: 36,
-  },
-
-  statementDivider: {
-    height: 28,
-  },
-
-  statementText: {
-    fontSize: 20,
-    color: "#555",
-    fontWeight: "bold",
-    fontStyle: "italic",
-    textAlign: "center",
-    lineHeight: 32,
-  },
-
-  optionText: {
-    fontSize: 23,
-    color: "#555",
-    fontWeight: "bold",
-    fontStyle: "italic",
-    textAlign: "center",
-    lineHeight: 33,
-  },
-
-  orText: {
-    fontSize: 28,
-    color: "#2f56a6",
-    fontWeight: "900",
-    fontStyle: "italic",
-    textAlign: "center",
-    marginVertical: 16,
-  },
-
-  nextButton: {
-    width: 230,
-    padding: 12,
-    borderRadius: 30,
-    backgroundColor: "#137DC5",
-    marginBottom: 35,
-  },
-
-  endButton: {
-    width: 300,
-    padding: 14,
-    borderRadius: 30,
-    backgroundColor: "#137DC5",
-  },
-
-  buttonText: {
-    color: "white",
-    fontSize: 20,
-    textAlign: "center",
-    fontWeight: "bold",
-  },
-
-  hotSeatTitle: {
-    fontSize: 24,
-    color: "#137DC5",
-    fontWeight: "bold",
-    textAlign: "left",
-    marginBottom: 22,
-  },
-
-  greenTitle: {
-    fontSize: 20,
-    color: "#137DC5",
-    fontWeight: "bold",
-    marginBottom: 8,
-    textAlign: "center",
-  },
-
-  hotSeatSuggestionTitle: {
-    marginTop: 15,
-    marginBottom: -10,
-    fontSize: 20,
-    fontWeight: "900",
-    fontStyle: "italic",
-    color: "#9c9c9c",
-    letterSpacing: 1,
-  },
-
-  orangeTitle: {
-    fontSize: 20,
-    color: "#137DC5",
-    fontWeight: "bold",
-    marginTop: 16,
-    marginBottom: 8,
-    textAlign: "center",
-  },
-
-
-  redTitle: {
-    fontSize: 20,
-    color: "#137DC5",
-    fontWeight: "bold",
-    marginTop: 16,
-    marginBottom: 8,
-    textAlign: "center",
-  },
-
-  hotSeatQuestion: {
-    fontSize: 15,
-    color: "#9c9c9c",
-    fontWeight: "600",
-    textAlign: "left",
-    lineHeight: 23,
-    marginBottom: 18,
+  knowMeOption: {
     width: "100%",
+    minHeight: 115,
+    backgroundColor: COLORS.white,
+    borderRadius: 25,
+    paddingHorizontal: 23,
+    paddingVertical: 22,
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 2,
+    borderColor: "transparent",
   },
 
-  categoryWrapper: {
+  knowMeOptionSelected: {
+    backgroundColor: "#E4F0FB",
+    borderColor: COLORS.blue,
+  },
+
+  knowMeOptionText: {
+    color: COLORS.navy,
+    fontSize: 18,
+    fontWeight: "600",
+    lineHeight: 27,
+    textAlign: "center",
+  },
+
+  knowMeOptionTextSelected: {
+    color: COLORS.blue,
+  },
+
+  knowMeOr: {
+    color: COLORS.navy,
+    fontSize: 23,
+    fontWeight: "800",
+    textAlign: "center",
+    marginVertical: 12,
+  },
+
+  knowMePrimaryButton: {
+    width: "90%",
+    minHeight: 62,
+    backgroundColor: COLORS.navy,
+    borderRadius: 35,
+    justifyContent: "center",
+    alignItems: "center",
+    alignSelf: "center",
+    marginTop: 35,
+    paddingHorizontal: 20,
+  },
+
+  knowMePrimaryButtonText: {
+    color: COLORS.white,
+    fontSize: 19,
+    fontWeight: "800",
+    textAlign: "center",
+  },
+
+  knowMeButtonDisabled: {
+    opacity: 0.45,
+  },
+
+  /**
+   * ===================================================
+   * KENDER DU MIG – WAITING
+   * ===================================================
+   */
+
+  knowMeWaitingScreen: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 24,
+    paddingBottom: 90,
+  },
+
+  knowMeWaitingIcons: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "flex-end",
+    flexWrap: "wrap",
+    gap: 12,
+    marginBottom: 25,
+  },
+
+  knowMeWaitingPerson: {
+    width: 30,
+    height: 49,
+    alignItems: "center",
+  },
+
+  knowMeResultNextButton: {
+    width: "100%",
+    maxWidth: 450,
+    height: 62,
+    borderRadius: 35,
+    backgroundColor: COLORS.navy,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+
+  knowMeResultNextText: {
+    color: COLORS.white,
+    fontSize: 21,
+    fontWeight: "800",
+  },
+
+  knowMePersonActive: {
+    opacity: 1,
+  },
+
+  knowMePersonInactive: {
+    opacity: 0.25,
+  },
+
+  knowMePersonHead: {
+    width: 16,
+    height: 16,
+    borderWidth: 2.5,
+    borderColor: COLORS.blue,
+    borderRadius: 8,
+    marginBottom: 4,
+  },
+
+  knowMePersonBody: {
+    width: 28,
+    height: 27,
+    borderWidth: 2.5,
+    borderColor: COLORS.blue,
+    borderTopLeftRadius: 14,
+    borderTopRightRadius: 14,
+    backgroundColor: COLORS.lightBlue,
+  },
+
+  knowMeWaitingCount: {
+    color: COLORS.navy,
+    fontSize: 24,
+    fontWeight: "800",
+    textAlign: "center",
+    marginBottom: 12,
+  },
+
+  knowMeWaitingSubtitle: {
+    color: COLORS.blue,
+    fontSize: 17,
+    textAlign: "center",
+  },
+
+  /**
+   * ===================================================
+   * KENDER DU MIG – RESULTS
+   * ===================================================
+   */
+
+  knowMeResultScreen: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 20,
+    paddingTop: 35,
+    paddingBottom: 30,
+  },
+
+  knowMeResultBlob: {
+    width: "100%",
+    minHeight: 300,
+    borderRadius: 80,
+    backgroundColor: COLORS.lightBlue,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 25,
+    paddingVertical: 35,
+  },
+
+  knowMeIncorrectBlob: {
+    backgroundColor: COLORS.pink,
+  },
+
+  knowMeResultIcon: {
+    fontSize: 65,
+    marginBottom: 20,
+  },
+
+  knowMeResultTitle: {
+    color: COLORS.navy,
+    fontSize: 31,
+    fontWeight: "900",
+    lineHeight: 39,
+    textAlign: "center",
+  },
+
+  knowMeResultArtwork: {
+    width: "100%",
+    maxWidth: 480,
+    height: 355,
+    marginTop: 45,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 55,
+    paddingTop: 10,
+  },
+
+  knowMeResultImage: {
+    width: 155,
+    height: 125,
+    marginBottom: 15,
+  },
+
+
+knowMeResultSubtitle: {
+  color: COLORS.navy,
+  fontSize: 25,
+  fontWeight: "800",
+  textAlign: "center",
+  marginTop: 8,
+},
+
+  knowMeResultDescription: {
+    color: COLORS.blue,
+    fontSize: 16,
+    textAlign: "center",
+    marginTop: 12,
+  },
+
+
+  knowMeAvatar: {
+    width: 135,
+    height: 135,
+    borderRadius: 67.5,
+    backgroundColor: "#ffffff",
+    borderWidth: 3,
+    borderColor: "#ffffff",
+    overflow: "hidden",
     alignItems: "center",
     justifyContent: "center",
   },
 
-  categoryOnlyImage: {
-    width: 315,
-    height: 135,
-    resizeMode: "contain",
-    marginBottom: 5,
+  knowMeAvatarImage: {
+    width: "100%",
+    height: "100%",
+    borderRadius: 67.5,
   },
 
-  backCategoryText: {
-    color: "#137DC5",
-    fontWeight: "bold",
-    fontSize: 17,
-    marginBottom: 15,
-  },
 
-  waitingText: {
-    color: "#9c9c9c",
-    fontSize: 18,
-    fontWeight: "bold",
+  knowMeHostWaiting: {
+    color: COLORS.muted,
+    fontSize: 16,
+    textAlign: "center",
     marginTop: 25,
   },
+
+  /**
+   * ===================================================
+   * OTHER GAMES
+   * ===================================================
+   */
+
+  genericScroll: {
+    flex: 1,
+  },
+
+  genericContent: {
+    flexGrow: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 24,
+    paddingBottom: 50,
+  },
+
+  genericCardText: {
+    color: COLORS.navy,
+    fontSize: 25,
+    fontWeight: "800",
+    textAlign: "center",
+    lineHeight: 35,
+    backgroundColor: COLORS.white,
+    borderRadius: 25,
+    overflow: "hidden",
+    padding: 28,
+  },
+
+  /**
+   * ===================================================
+   * BOTTOM CONTROLS
+   * ===================================================
+   */
+
+  bottomControls: {
+    alignItems: "center",
+    paddingBottom: 35,
+    paddingHorizontal: 25,
+  },
+
+  nextButton: {
+    width: "85%",
+    minHeight: 60,
+    backgroundColor: COLORS.navy,
+    borderRadius: 35,
+    justifyContent: "center",
+    alignItems: "center",
+    alignSelf: "center",
+  },
+
+  nextButtonText: {
+    color: COLORS.white,
+    fontSize: 20,
+    fontWeight: "800",
+  },
+
+  roundCounter: {
+    color: COLORS.muted,
+    fontSize: 17,
+    fontWeight: "600",
+    marginTop: 14,
+  },
 });
+
+export default GamePlayScreen;
